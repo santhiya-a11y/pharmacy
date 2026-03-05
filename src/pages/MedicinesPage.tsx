@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Search, Filter, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import AddMedicineDialog from "@/components/medicines/AddMedicineDialog";
 
 const medicines = [
   { name: "Dolo 650mg", generic: "Paracetamol", manufacturer: "Micro Labs", category: "Analgesic", mrp: 30, stock: 250, schedule: "OTC" },
@@ -13,6 +15,7 @@ const medicines = [
 ];
 
 const MedicinesPage = () => {
+  const [showAdd, setShowAdd] = useState(false);
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -20,7 +23,7 @@ const MedicinesPage = () => {
           <h1 className="text-2xl font-bold text-foreground">Medicine Master</h1>
           <p className="text-sm text-muted-foreground">Manage your medicine database</p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md hover:opacity-90 transition-opacity">
+        <button onClick={() => setShowAdd(true)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md hover:opacity-90 transition-opacity">
           <Plus className="h-4 w-4" /> Add Medicine
         </button>
       </div>
@@ -67,6 +70,7 @@ const MedicinesPage = () => {
           </tbody>
         </table>
       </div>
+      <AddMedicineDialog open={showAdd} onClose={() => setShowAdd(false)} />
     </div>
   );
 };

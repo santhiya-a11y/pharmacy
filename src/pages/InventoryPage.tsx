@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Search, Filter, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import AddStockDialog from "@/components/inventory/AddStockDialog";
 
 const inventory = [
   { medicine: "Dolo 650mg", batch: "B102", expiry: "08/2026", stock: 250, rack: "A1-03", purchased: "₹22", mrp: "₹30", status: "safe" },
@@ -18,6 +20,7 @@ const statusStyles: Record<string, string> = {
 };
 
 const InventoryPage = () => {
+  const [showAdd, setShowAdd] = useState(false);
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -25,7 +28,7 @@ const InventoryPage = () => {
           <h1 className="text-2xl font-bold text-foreground">Inventory Management</h1>
           <p className="text-sm text-muted-foreground">Track stock, batches, and expiry dates</p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md hover:opacity-90 transition-opacity">
+        <button onClick={() => setShowAdd(true)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md hover:opacity-90 transition-opacity">
           <Plus className="h-4 w-4" /> Add Stock
         </button>
       </div>
@@ -90,6 +93,7 @@ const InventoryPage = () => {
           </tbody>
         </table>
       </div>
+      <AddStockDialog open={showAdd} onClose={() => setShowAdd(false)} />
     </div>
   );
 };

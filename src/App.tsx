@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import POSBilling from "./pages/POSBilling";
 import MedicinesPage from "./pages/MedicinesPage";
 import InventoryPage from "./pages/InventoryPage";
+import ReportsPage from "./pages/ReportsPage";
 import PlaceholderPage from "./components/PlaceholderPage";
 import NotFound from "./pages/NotFound";
 import {
@@ -35,7 +36,7 @@ const App = () => (
           <Route path="/expiry" element={<AppLayout><PlaceholderPage title="Expiry & Dead Stock" description="Track expiring medicines, manage returns, and reduce losses." icon={AlertTriangle} /></AppLayout>} />
           <Route path="/offers" element={<AppLayout><PlaceholderPage title="Offers & Discounts" description="Create product discounts, loyalty rewards, and supplier schemes." icon={Tags} /></AppLayout>} />
           <Route path="/returns" element={<AppLayout><PlaceholderPage title="Returns Management" description="Process customer returns and supplier credit notes." icon={RotateCcw} /></AppLayout>} />
-          <Route path="/reports" element={<AppLayout><PlaceholderPage title="Reports & Analytics" description="GST reports, sales analytics, profit margins, and inventory insights." icon={BarChart3} /></AppLayout>} />
+          <Route path="/reports" element={<AppLayout><ReportsPage /></AppLayout>} />
           <Route path="/expenses" element={<AppLayout><PlaceholderPage title="Expense Tracking" description="Track daily expenses, overhead costs, and financial summaries." icon={Wallet} /></AppLayout>} />
           <Route path="/staff" element={<AppLayout><PlaceholderPage title="Staff Management" description="Manage roles, permissions, shifts, and staff performance." icon={UserCog} /></AppLayout>} />
           <Route path="/activity" element={<AppLayout><PlaceholderPage title="Activity Log" description="View audit trail of all system actions and changes." icon={Activity} /></AppLayout>} />

@@ -5,8 +5,11 @@ import {
 } from "recharts";
 import {
   FileText, Download, Calendar, TrendingUp, TrendingDown,
-  IndianRupee, ShoppingCart, Package, Filter
+  IndianRupee, ShoppingCart, Package, Filter, AlertTriangle,
+  Clock, Zap, ArrowUpRight, Eye
 } from "lucide-react";
+import { InsightCard } from "@/components/reports/InsightCard";
+import { AIReorderPanel } from "@/components/reports/AIReorderPanel";
 
 const dailySales = [
   { date: "01 Mar", sales: 18200, returns: 800 },
@@ -63,11 +66,11 @@ const paymentBreakdown = [
 
 type TabKey = "overview" | "sales" | "gst" | "inventory";
 
-const tabs: { key: TabKey; label: string }[] = [
-  { key: "overview", label: "Overview" },
-  { key: "sales", label: "Sales Report" },
-  { key: "gst", label: "GST Report" },
-  { key: "inventory", label: "Inventory Report" },
+const tabs: { key: TabKey; label: string; icon: any }[] = [
+  { key: "overview", label: "Overview", icon: Eye },
+  { key: "sales", label: "Sales Report", icon: TrendingUp },
+  { key: "gst", label: "GST Report", icon: FileText },
+  { key: "inventory", label: "Inventory Intelligence", icon: Package },
 ];
 
 const ReportsPage = () => {
@@ -79,7 +82,7 @@ const ReportsPage = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
-          <p className="text-sm text-muted-foreground">Insights to grow your pharmacy business</p>
+          <p className="text-sm text-muted-foreground">Actionable insights to grow your pharmacy</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
@@ -92,24 +95,58 @@ const ReportsPage = () => {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 rounded-lg bg-secondary p-1">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-all ${
-              activeTab === tab.key
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Insight Cards — always visible */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <InsightCard
+          icon={<Zap className="h-5 w-5" />}
+          severity="critical"
+          title="Stock Running Out"
+          description="Paracetamol 500mg sold 430 tablets this week. Stock will run out in 4 days at current velocity."
+          metric="4 days"
+          metricLabel="until stockout"
+          actionLabel="Reorder now"
+        />
+        <InsightCard
+          icon={<TrendingUp className="h-5 w-5" />}
+          severity="success"
+          title="Revenue Up 14%"
+          description="Weekly revenue hit ₹1,59,800 — your best week this month. Antibiotics drove 32% of sales."
+          metric="₹1.59L"
+          metricLabel="this week"
+          actionLabel="View breakdown"
+        />
+        <InsightCard
+          icon={<Clock className="h-5 w-5" />}
+          severity="warning"
+          title="Peak Hour: 5–7 PM"
+          description="65% of daily bills happen between 5–7 PM. Consider adding staff during these hours."
+          metric="35"
+          metricLabel="peak bills/hr"
+          actionLabel="See hourly data"
+        />
       </div>
 
-      {/* Tab Content */}
+      {/* Tabs */}
+      <div className="flex gap-1 rounded-lg bg-secondary p-1">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex-1 inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${
+                activeTab === tab.key
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
       {activeTab === "overview" && <OverviewTab />}
       {activeTab === "sales" && <SalesTab />}
       {activeTab === "gst" && <GSTTab />}
@@ -118,9 +155,9 @@ const ReportsPage = () => {
   );
 };
 
+/* ────────── OVERVIEW ────────── */
 const OverviewTab = () => (
   <div className="space-y-6 animate-fade-in">
-    {/* KPI Cards */}
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <KPICard title="Total Revenue" value="₹1,59,800" trend={14} icon={IndianRupee} />
       <KPICard title="Total Bills" value="312" trend={8} icon={ShoppingCart} />
@@ -128,7 +165,6 @@ const OverviewTab = () => (
       <KPICard title="Items Sold" value="1,486" trend={-2} icon={Package} />
     </div>
 
-    {/* Sales Chart + Category Pie */}
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 rounded-xl border border-border bg-card p-6">
         <h3 className="text-base font-semibold text-card-foreground mb-4">Daily Sales & Returns</h3>
@@ -170,7 +206,6 @@ const OverviewTab = () => (
       </div>
     </div>
 
-    {/* Payment + Top Medicines */}
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="rounded-xl border border-border bg-card p-6">
         <h3 className="text-base font-semibold text-card-foreground mb-4">Payment Breakdown</h3>
@@ -182,10 +217,7 @@ const OverviewTab = () => (
                 <span className="font-semibold text-card-foreground">{p.amount} ({p.pct})</span>
               </div>
               <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-primary transition-all"
-                  style={{ width: p.pct, opacity: 1 - i * 0.15 }}
-                />
+                <div className="h-full rounded-full bg-primary transition-all" style={{ width: p.pct, opacity: 1 - i * 0.15 }} />
               </div>
             </div>
           ))}
@@ -218,6 +250,7 @@ const OverviewTab = () => (
   </div>
 );
 
+/* ────────── SALES ────────── */
 const SalesTab = () => (
   <div className="space-y-6 animate-fade-in">
     <div className="rounded-xl border border-border bg-card p-6">
@@ -275,9 +308,9 @@ const SalesTab = () => (
   </div>
 );
 
+/* ────────── GST ────────── */
 const GSTTab = () => (
   <div className="space-y-6 animate-fade-in">
-    {/* GST KPIs */}
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <div className="rounded-xl border border-border bg-card p-5">
         <p className="text-sm text-muted-foreground">Total Taxable Value</p>
@@ -293,7 +326,6 @@ const GSTTab = () => (
       </div>
     </div>
 
-    {/* GST Breakup Table */}
     <div className="rounded-xl border border-border bg-card p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-card-foreground">GST Slab-wise Summary</h3>
@@ -332,7 +364,6 @@ const GSTTab = () => (
       </table>
     </div>
 
-    {/* HSN Summary */}
     <div className="rounded-xl border border-border bg-card p-6">
       <h3 className="text-base font-semibold text-card-foreground mb-4">HSN-wise Summary (Top 5)</h3>
       <table className="w-full text-sm">
@@ -358,7 +389,9 @@ const GSTTab = () => (
               <td className="px-4 py-3 text-muted-foreground">{row.desc}</td>
               <td className="px-4 py-3 text-right">{row.qty}</td>
               <td className="px-4 py-3 text-right font-semibold">{row.taxable}</td>
-              <td className="px-4 py-3 text-center"><span className="rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">{row.rate}</span></td>
+              <td className="px-4 py-3 text-center">
+                <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">{row.rate}</span>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -367,6 +400,7 @@ const GSTTab = () => (
   </div>
 );
 
+/* ────────── INVENTORY INTELLIGENCE ────────── */
 const InventoryTab = () => (
   <div className="space-y-6 animate-fade-in">
     <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -388,8 +422,10 @@ const InventoryTab = () => (
       </div>
     </div>
 
+    {/* AI Reorder Panel */}
+    <AIReorderPanel />
+
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Stock Movement */}
       <div className="rounded-xl border border-border bg-card p-6">
         <h3 className="text-base font-semibold text-card-foreground mb-4">Stock Movement (This Week)</h3>
         <ResponsiveContainer width="100%" height={260}>
@@ -405,7 +441,6 @@ const InventoryTab = () => (
         </ResponsiveContainer>
       </div>
 
-      {/* Dead Stock */}
       <div className="rounded-xl border border-border bg-card p-6">
         <h3 className="text-base font-semibold text-card-foreground mb-4">Dead Stock (No sales in 90 days)</h3>
         <div className="space-y-2.5">
@@ -430,6 +465,7 @@ const InventoryTab = () => (
   </div>
 );
 
+/* ────────── KPI CARD ────────── */
 const KPICard = ({ title, value, trend, icon: Icon }: { title: string; value: string; trend: number; icon: any }) => {
   const isUp = trend >= 0;
   return (

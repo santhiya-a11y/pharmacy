@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Search, Plus, MoreVertical, Shield, Phone, Mail, Clock, UserCheck, UserX, X, Save } from "lucide-react";
+import { Search, Plus, MoreVertical, Shield, Phone, Mail, Clock, UserCheck, UserX, X, Save, CalendarDays } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import AdminAttendanceView from "@/components/staff/AdminAttendanceView";
 
 interface StaffMember {
   id: number;
@@ -43,6 +44,7 @@ const StaffPage = () => {
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [activeTab, setActiveTab] = useState<"staff" | "attendance">("staff");
   const [newStaff, setNewStaff] = useState({ name: "", role: "", phone: "", email: "", shift: "" });
 
   const filtered = staffData.filter(s => {
@@ -52,7 +54,6 @@ const StaffPage = () => {
   });
 
   const activeCount = staffData.filter(s => s.status === "active").length;
-
   const updateNew = (field: string, value: string) => setNewStaff(prev => ({ ...prev, [field]: value }));
 
   return (
@@ -61,111 +62,135 @@ const StaffPage = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Staff Management</h1>
-          <p className="text-sm text-muted-foreground">Manage team roles, shifts, and performance</p>
+          <p className="text-sm text-muted-foreground">Manage team roles, shifts, and attendance</p>
         </div>
         <Button onClick={() => setShowAddDialog(true)} className="gap-2 shadow-md">
           <Plus className="h-4 w-4" /> Add Staff
         </Button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-xs text-muted-foreground font-medium">Total Staff</p>
-          <p className="text-2xl font-bold text-card-foreground mt-1">{staffData.length}</p>
-        </div>
-        <div className="rounded-xl border border-success/30 bg-success/5 p-4">
-          <div className="flex items-center gap-1.5">
-            <UserCheck className="h-3.5 w-3.5 text-success" />
-            <p className="text-xs text-success font-medium">Active</p>
-          </div>
-          <p className="text-2xl font-bold text-success mt-1">{activeCount}</p>
-        </div>
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
-          <div className="flex items-center gap-1.5">
-            <UserX className="h-3.5 w-3.5 text-destructive" />
-            <p className="text-xs text-destructive font-medium">Inactive</p>
-          </div>
-          <p className="text-2xl font-bold text-destructive mt-1">{staffData.length - activeCount}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="flex items-center gap-1.5">
-            <Shield className="h-3.5 w-3.5 text-primary" />
-            <p className="text-xs text-muted-foreground font-medium">Roles</p>
-          </div>
-          <p className="text-2xl font-bold text-card-foreground mt-1">{new Set(staffData.map(s => s.role)).size}</p>
-        </div>
+      {/* Tab Switcher */}
+      <div className="flex rounded-lg border border-border bg-card overflow-hidden w-fit">
+        <button
+          onClick={() => setActiveTab("staff")}
+          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium transition-colors ${activeTab === "staff" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}
+        >
+          <UserCheck className="h-4 w-4" />
+          Staff Directory
+        </button>
+        <button
+          onClick={() => setActiveTab("attendance")}
+          className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium transition-colors ${activeTab === "attendance" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}
+        >
+          <CalendarDays className="h-4 w-4" />
+          Attendance
+        </button>
       </div>
 
-      {/* Search & Filter */}
-      <div className="flex gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search by name or role..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10 bg-card border-border" />
-        </div>
-        <Select value={filterRole} onValueChange={setFilterRole}>
-          <SelectTrigger className="w-48 bg-card border-border">
-            <SelectValue placeholder="All Roles" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Roles</SelectItem>
-            {roles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Staff Cards — card layout for better scanability & human feel */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {filtered.map(member => (
-          <div key={member.id} className="rounded-xl border border-border bg-card p-5 hover:shadow-md transition-shadow group">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold ${
-                  member.status === "active" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}>
-                  {member.avatar}
-                </div>
-                <div>
-                  <h3 className="font-semibold text-card-foreground">{member.name}</h3>
-                  <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium mt-0.5 ${roleColors[member.role] || "bg-secondary text-secondary-foreground"}`}>
-                    {member.role}
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={member.status === "active" ? "default" : "secondary"} className={`text-[10px] ${member.status === "active" ? "bg-success/15 text-success hover:bg-success/20 border-0" : "bg-muted text-muted-foreground border-0"}`}>
-                  {member.status === "active" ? "Active" : "Inactive"}
-                </Badge>
-                <button className="rounded-md p-1 opacity-0 group-hover:opacity-100 hover:bg-secondary transition-all">
-                  <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                </button>
-              </div>
+      {activeTab === "attendance" ? (
+        <AdminAttendanceView />
+      ) : (
+        <>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="rounded-xl border border-border bg-card p-4">
+              <p className="text-xs text-muted-foreground font-medium">Total Staff</p>
+              <p className="text-2xl font-bold text-card-foreground mt-1">{staffData.length}</p>
             </div>
-
-            <div className="mt-4 space-y-2 text-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Phone className="h-3.5 w-3.5" />
-                <span>{member.phone}</span>
+            <div className="rounded-xl border border-success/30 bg-success/5 p-4">
+              <div className="flex items-center gap-1.5">
+                <UserCheck className="h-3.5 w-3.5 text-success" />
+                <p className="text-xs text-success font-medium">Active</p>
               </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Mail className="h-3.5 w-3.5" />
-                <span className="truncate">{member.email}</span>
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Clock className="h-3.5 w-3.5" />
-                <span>{member.shift} Shift · Since {member.joinDate}</span>
-              </div>
+              <p className="text-2xl font-bold text-success mt-1">{activeCount}</p>
             </div>
-
-            {member.sales !== undefined && (
-              <div className="mt-4 rounded-lg bg-secondary/50 px-3 py-2">
-                <p className="text-[11px] text-muted-foreground">This Month Sales</p>
-                <p className="text-sm font-bold text-card-foreground">₹{member.sales.toLocaleString("en-IN")}</p>
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+              <div className="flex items-center gap-1.5">
+                <UserX className="h-3.5 w-3.5 text-destructive" />
+                <p className="text-xs text-destructive font-medium">Inactive</p>
               </div>
-            )}
+              <p className="text-2xl font-bold text-destructive mt-1">{staffData.length - activeCount}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <div className="flex items-center gap-1.5">
+                <Shield className="h-3.5 w-3.5 text-primary" />
+                <p className="text-xs text-muted-foreground font-medium">Roles</p>
+              </div>
+              <p className="text-2xl font-bold text-card-foreground mt-1">{new Set(staffData.map(s => s.role)).size}</p>
+            </div>
           </div>
-        ))}
-      </div>
+
+          {/* Search & Filter */}
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input placeholder="Search by name or role..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10 bg-card border-border" />
+            </div>
+            <Select value={filterRole} onValueChange={setFilterRole}>
+              <SelectTrigger className="w-48 bg-card border-border">
+                <SelectValue placeholder="All Roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                {roles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Staff Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filtered.map(member => (
+              <div key={member.id} className="rounded-xl border border-border bg-card p-5 hover:shadow-md transition-shadow group">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold ${
+                      member.status === "active" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    }`}>
+                      {member.avatar}
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-card-foreground">{member.name}</h3>
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium mt-0.5 ${roleColors[member.role] || "bg-secondary text-secondary-foreground"}`}>
+                        {member.role}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={member.status === "active" ? "default" : "secondary"} className={`text-[10px] ${member.status === "active" ? "bg-success/15 text-success hover:bg-success/20 border-0" : "bg-muted text-muted-foreground border-0"}`}>
+                      {member.status === "active" ? "Active" : "Inactive"}
+                    </Badge>
+                    <button className="rounded-md p-1 opacity-0 group-hover:opacity-100 hover:bg-secondary transition-all">
+                      <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-2 text-sm">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Phone className="h-3.5 w-3.5" />
+                    <span>{member.phone}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Mail className="h-3.5 w-3.5" />
+                    <span className="truncate">{member.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Clock className="h-3.5 w-3.5" />
+                    <span>{member.shift} Shift · Since {member.joinDate}</span>
+                  </div>
+                </div>
+
+                {member.sales !== undefined && (
+                  <div className="mt-4 rounded-lg bg-secondary/50 px-3 py-2">
+                    <p className="text-[11px] text-muted-foreground">This Month Sales</p>
+                    <p className="text-sm font-bold text-card-foreground">₹{member.sales.toLocaleString("en-IN")}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Add Staff Dialog */}
       {showAddDialog && (

@@ -30,8 +30,8 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <RoleProvider>
+      <RoleProvider>
+        <BrowserRouter>
           <Routes>
             <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
             <Route path="/pos" element={<POSBilling />} />
@@ -51,8 +51,8 @@ const App = () => (
             <Route path="/employee" element={<AppLayout><EmployeeDashboard /></AppLayout>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </RoleProvider>
-      </BrowserRouter>
+        </BrowserRouter>
+      </RoleProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

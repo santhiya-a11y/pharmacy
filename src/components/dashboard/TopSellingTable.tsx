@@ -1,9 +1,9 @@
 const topMedicines = [
-  { name: "Dolo 650mg", sold: 245, revenue: "₹7,350" },
-  { name: "Azithromycin 500mg", sold: 180, revenue: "₹18,000" },
-  { name: "Cetirizine 10mg", sold: 156, revenue: "₹4,680" },
-  { name: "Pantoprazole 40mg", sold: 134, revenue: "₹8,040" },
-  { name: "Amoxicillin 250mg", sold: 120, revenue: "₹6,000" },
+  { name: "Dolo 650mg", sold: 245, revenue: "₹7,350", profit: "₹2,205", margin: 30 },
+  { name: "Azithromycin 500mg", sold: 180, revenue: "₹18,000", profit: "₹5,200", margin: 29 },
+  { name: "Cetirizine 10mg", sold: 156, revenue: "₹4,680", profit: "₹1,870", margin: 40 },
+  { name: "Pantoprazole 40mg", sold: 134, revenue: "₹8,040", profit: "₹2,010", margin: 25 },
+  { name: "Amoxicillin 250mg", sold: 120, revenue: "₹6,000", profit: "₹1,680", margin: 28 },
 ];
 
 export const TopSellingTable = () => {
@@ -15,8 +15,10 @@ export const TopSellingTable = () => {
           <thead>
             <tr className="border-b border-border">
               <th className="pb-3 text-left font-medium text-muted-foreground">Medicine</th>
-              <th className="pb-3 text-right font-medium text-muted-foreground">Sold</th>
+              <th className="pb-3 text-right font-medium text-muted-foreground">Units</th>
               <th className="pb-3 text-right font-medium text-muted-foreground">Revenue</th>
+              <th className="pb-3 text-right font-medium text-muted-foreground">Profit</th>
+              <th className="pb-3 text-right font-medium text-muted-foreground">Margin</th>
             </tr>
           </thead>
           <tbody>
@@ -24,7 +26,13 @@ export const TopSellingTable = () => {
               <tr key={i} className="border-b border-border/50 last:border-0">
                 <td className="py-3 font-medium text-card-foreground">{med.name}</td>
                 <td className="py-3 text-right text-muted-foreground">{med.sold}</td>
-                <td className="py-3 text-right font-semibold text-card-foreground">{med.revenue}</td>
+                <td className="py-3 text-right text-card-foreground">{med.revenue}</td>
+                <td className="py-3 text-right font-semibold text-success">{med.profit}</td>
+                <td className="py-3 text-right">
+                  <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">
+                    {med.margin}%
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>

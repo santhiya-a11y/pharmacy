@@ -1,6 +1,9 @@
+import { InventoryHealthBar } from "@/components/dashboard/InventoryHealthBar";
+import { CriticalAlerts } from "@/components/dashboard/CriticalAlerts";
+import { QuickActions } from "@/components/dashboard/QuickActions";
+import { ReorderSuggestions } from "@/components/dashboard/ReorderSuggestions";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
-import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
 import { TopSellingTable } from "@/components/dashboard/TopSellingTable";
 import { IndianRupee, ShoppingCart, Package, Wallet } from "lucide-react";
 
@@ -14,22 +17,25 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      {/* Header + Quick Actions */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Welcome back, Admin</h1>
+          <h1 className="text-2xl font-bold text-foreground">Good Morning, Admin</h1>
           <p className="text-sm text-muted-foreground">{today}</p>
         </div>
-        <a
-          href="/pos"
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md hover:opacity-90 transition-opacity"
-        >
-          <ShoppingCart className="h-4 w-4" />
-          Start Billing →
-        </a>
+        <QuickActions />
       </div>
 
-      {/* Stats */}
+      {/* 1. Inventory Health — above the fold */}
+      <InventoryHealthBar />
+
+      {/* 2. Critical Alerts + AI Reorder — the operational core */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <CriticalAlerts />
+        <ReorderSuggestions />
+      </div>
+
+      {/* 3. Sales Metrics — secondary */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Today's Sales"
@@ -61,14 +67,11 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Charts */}
+      {/* 4. Sales Chart — compact */}
       <SalesChart />
 
-      {/* Bottom Row */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <TopSellingTable />
-        <AlertsPanel />
-      </div>
+      {/* 5. Top Medicines with Profit */}
+      <TopSellingTable />
     </div>
   );
 };

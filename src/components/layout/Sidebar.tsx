@@ -2,25 +2,49 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Receipt, Package, Users, Warehouse,
   RotateCcw, BarChart3, Wallet, AlertTriangle, UserCircle,
-  UserCog, Activity, Settings, Truck, Tags, FileText, Pill, ChevronDown, LogOut
+  UserCog, Activity, Settings, Truck, FileText, Pill, ChevronDown, LogOut
 } from "lucide-react";
 
-const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, path: "/" },
-  { label: "Billing (POS)", icon: Receipt, path: "/pos" },
-  { label: "Medicines", icon: Pill, path: "/medicines" },
-  { label: "Inventory Manage...", icon: Warehouse, path: "/inventory" },
-  { label: "Purchases", icon: Package, path: "/purchases" },
-  { label: "Suppliers", icon: Truck, path: "/suppliers" },
-  { label: "Returns", icon: RotateCcw, path: "/returns" },
-  { label: "Reports", icon: BarChart3, path: "/reports" },
-  { label: "Expenses", icon: Wallet, path: "/expenses" },
-  { label: "Stock Alerts", icon: AlertTriangle, path: "/expiry" },
-  { label: "Customers", icon: UserCircle, path: "/customers" },
-  { label: "Staff", icon: UserCog, path: "/staff" },
-  { label: "Activity Log", icon: Activity, path: "/activity" },
-  { label: "Prescriptions", icon: FileText, path: "/prescriptions" },
-  { label: "Settings", icon: Settings, path: "/settings" },
+const navGroups = [
+  {
+    label: "Dashboard",
+    items: [
+      { label: "Sales", icon: LayoutDashboard, path: "/" },
+      { label: "Billing (POS)", icon: Receipt, path: "/pos" },
+      { label: "Prescriptions", icon: FileText, path: "/prescriptions" },
+    ],
+  },
+  {
+    label: "Inventory",
+    items: [
+      { label: "Medicines", icon: Pill, path: "/medicines" },
+      { label: "Stock", icon: Warehouse, path: "/inventory" },
+      { label: "Purchases", icon: Package, path: "/purchases" },
+      { label: "Returns", icon: RotateCcw, path: "/returns" },
+      { label: "Suppliers", icon: Truck, path: "/suppliers" },
+    ],
+  },
+  {
+    label: "Customers",
+    items: [
+      { label: "Customers", icon: UserCircle, path: "/customers" },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
+      { label: "Staff", icon: UserCog, path: "/staff" },
+      { label: "Expenses", icon: Wallet, path: "/expenses" },
+      { label: "Activity Log", icon: Activity, path: "/activity" },
+    ],
+  },
+  {
+    label: "Insights",
+    items: [
+      { label: "Reports", icon: BarChart3, path: "/reports" },
+      { label: "Stock Alerts", icon: AlertTriangle, path: "/expiry" },
+    ],
+  },
 ];
 
 export const Sidebar = () => {
@@ -49,25 +73,49 @@ export const Sidebar = () => {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-1 scrollbar-thin space-y-0.5">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13.5px] font-medium transition-all duration-150 ${
-                isActive
-                  ? "bg-accent text-primary font-semibold"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              }`}
-            >
-              <item.icon className={`h-[18px] w-[18px] flex-shrink-0 ${isActive ? "text-primary" : ""}`} />
-              <span className="truncate">{item.label}</span>
-            </NavLink>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto px-3 py-1 scrollbar-thin space-y-4">
+        {navGroups.map((group) => (
+          <div key={group.label}>
+            <p className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+              {group.label}
+            </p>
+            <div className="space-y-0.5">
+              {group.items.map((item) => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13.5px] font-medium transition-all duration-150 ${
+                      isActive
+                        ? "bg-accent text-primary font-semibold"
+                        : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    }`}
+                  >
+                    <item.icon className={`h-[18px] w-[18px] flex-shrink-0 ${isActive ? "text-primary" : ""}`} />
+                    <span className="truncate">{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
+
+      {/* Settings link */}
+      <div className="px-3 pb-2">
+        <NavLink
+          to="/settings"
+          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13.5px] font-medium transition-all duration-150 ${
+            location.pathname === "/settings"
+              ? "bg-accent text-primary font-semibold"
+              : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+          }`}
+        >
+          <Settings className="h-[18px] w-[18px] flex-shrink-0" />
+          <span>Settings</span>
+        </NavLink>
+      </div>
 
       {/* User */}
       <div className="border-t border-border p-3">

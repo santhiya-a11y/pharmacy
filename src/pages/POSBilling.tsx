@@ -1,6 +1,9 @@
 import { useState } from "react";
-import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone, Users } from "lucide-react";
+import { Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone, Users, ShoppingBag, Pill } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import DosageBuilder from "@/components/billing/DosageBuilder";
+import BagSelector, { BagItem } from "@/components/billing/BagSelector";
 
 interface CartItem {
   sno: number;
@@ -17,6 +20,8 @@ interface CartItem {
   gst: number;
   taxCat: string;
   discPct: number;
+  dosageLabel?: string;
+  isBag?: boolean;
 }
 
 const sampleMedicines = [
@@ -33,6 +38,8 @@ const POSBilling = () => {
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showBagSelector, setShowBagSelector] = useState(false);
+  const [dosageTarget, setDosageTarget] = useState<CartItem | null>(null);
 
   const filtered = search.length > 0
     ? sampleMedicines.filter(m =>
@@ -47,7 +54,7 @@ const POSBilling = () => {
     if (existing) {
       setCart(cart.map(c => c.id === med.id ? { ...c, qty: c.qty + 1 } : c));
     } else {
-      setCart([...cart, {
+      const newItem: CartItem = {
         sno: cart.length + 1,
         id: med.id,
         name: med.name,
@@ -62,10 +69,32 @@ const POSBilling = () => {
         gst: med.gst,
         taxCat: med.taxCat,
         discPct: 0,
-      }]);
+      };
+      setCart([...cart, newItem]);
     }
     setSearch("");
     setShowSuggestions(false);
+  };
+
+  const addBagToCart = (bag: BagItem) => {
+    const bagId = 9000 + Math.random() * 1000;
+    setCart(prev => [...prev, {
+      sno: prev.length + 1,
+      id: bagId,
+      name: bag.name,
+      description: bag.size + " bag",
+      mfCode: "—",
+      manufacturer: "—",
+      batch: "—",
+      expiry: "—",
+      mrp: bag.price,
+      cost: bag.price,
+      qty: 1,
+      gst: 18,
+      taxCat: "GST 18%",
+      discPct: 0,
+      isBag: true,
+    }]);
   };
 
   const updateQty = (id: number, delta: number) => {
@@ -80,10 +109,13 @@ const POSBilling = () => {
     setCart(cart.filter(c => c.id !== id).map((c, i) => ({ ...c, sno: i + 1 })));
   };
 
+  const setDosageLabel = (id: number, label: string) => {
+    setCart(cart.map(c => c.id === id ? { ...c, dosageLabel: label } : c));
+  };
+
   const getItemTotal = (item: CartItem) => {
     const base = item.mrp * item.qty;
-    const discounted = base - (base * item.discPct / 100);
-    return discounted;
+    return base - (base * item.discPct / 100);
   };
 
   const subtotal = cart.reduce((s, c) => s + getItemTotal(c), 0);
@@ -95,48 +127,57 @@ const POSBilling = () => {
     <div className="flex h-[calc(100vh-7rem)] gap-4">
       {/* Left - Search & Cart */}
       <div className="flex flex-1 flex-col min-w-0">
-        {/* Search */}
-        <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search medicine (name / generic / MF code / barcode)..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setShowSuggestions(true); }}
-            onFocus={() => setShowSuggestions(true)}
-            className="h-12 pl-11 text-base bg-card border-border"
-            autoFocus
-          />
-          {showSuggestions && filtered.length > 0 && (
-            <div className="absolute z-50 mt-1 w-full rounded-xl border border-border bg-card shadow-lg overflow-hidden">
-              {filtered.map(med => (
-                <button
-                  key={med.id}
-                  onClick={() => addToCart(med)}
-                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-accent transition-colors border-b border-border/50 last:border-0"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-card-foreground">{med.name}</p>
-                    <p className="text-xs text-muted-foreground">{med.description} • {med.manufacturer}</p>
-                    <p className="text-xs text-muted-foreground">MF: {med.mfCode} • Batch: {med.batch} • Exp: {med.expiry}</p>
-                  </div>
-                  <div className="text-right shrink-0 ml-3">
-                    <p className="text-sm font-bold text-card-foreground">₹{med.mrp}</p>
-                    <p className="text-xs text-muted-foreground">Cost: ₹{med.cost}</p>
-                    <p className={`text-xs ${med.stock < 10 ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
-                      Stock: {med.stock}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
+        {/* Search + Bag Button */}
+        <div className="flex gap-2 mb-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search medicine (name / generic / MF code / barcode)..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setShowSuggestions(true); }}
+              onFocus={() => setShowSuggestions(true)}
+              className="h-12 pl-11 text-base bg-card border-border"
+              autoFocus
+            />
+            {showSuggestions && filtered.length > 0 && (
+              <div className="absolute z-50 mt-1 w-full rounded-xl border border-border bg-card shadow-lg overflow-hidden">
+                {filtered.map(med => (
+                  <button
+                    key={med.id}
+                    onClick={() => addToCart(med)}
+                    className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-accent transition-colors border-b border-border/50 last:border-0"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-card-foreground">{med.name}</p>
+                      <p className="text-xs text-muted-foreground">{med.description} • {med.manufacturer}</p>
+                      <p className="text-xs text-muted-foreground">MF: {med.mfCode} • Batch: {med.batch} • Exp: {med.expiry}</p>
+                    </div>
+                    <div className="text-right shrink-0 ml-3">
+                      <p className="text-sm font-bold text-card-foreground">₹{med.mrp}</p>
+                      <p className="text-xs text-muted-foreground">Cost: ₹{med.cost}</p>
+                      <p className={`text-xs ${med.stock < 10 ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
+                        Stock: {med.stock}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => setShowBagSelector(true)}
+            className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 h-12 hover:bg-accent hover:border-primary/40 transition-all shrink-0"
+          >
+            <ShoppingBag className="h-5 w-5 text-primary" />
+            <span className="text-sm font-medium">Bag</span>
+          </button>
         </div>
 
         {/* Cart Table */}
         <div className="flex-1 rounded-xl border border-border bg-card overflow-hidden">
           <div className="overflow-x-auto">
-            <div className="min-w-[900px]">
-              <div className="bg-secondary/50 px-3 py-2.5 grid grid-cols-[32px_56px_1.5fr_1fr_60px_70px_70px_64px_70px_64px_70px_32px] gap-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+            <div className="min-w-[960px]">
+              <div className="bg-secondary/50 px-3 py-2.5 grid grid-cols-[32px_56px_1.5fr_1fr_60px_70px_70px_64px_70px_64px_70px_56px_32px] gap-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
                 <span>S.</span>
                 <span>MF Code</span>
                 <span>Description</span>
@@ -148,6 +189,7 @@ const POSBilling = () => {
                 <span>Expiry</span>
                 <span className="text-right">MRP</span>
                 <span className="text-right">Disc %</span>
+                <span className="text-center">Dose</span>
                 <span></span>
               </div>
               <div className="max-h-[calc(100vh-22rem)] overflow-y-auto scrollbar-thin">
@@ -159,45 +201,66 @@ const POSBilling = () => {
                 ) : (
                   <>
                     {cart.map(item => (
-                      <div key={item.id} className="grid grid-cols-[32px_56px_1.5fr_1fr_60px_70px_70px_64px_70px_64px_70px_32px] gap-1 items-center px-3 py-2.5 border-b border-border/50 animate-fade-in text-xs">
-                        <span className="text-muted-foreground font-medium">{item.sno}</span>
-                        <span className="text-muted-foreground font-mono truncate" title={item.mfCode}>{item.mfCode}</span>
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-card-foreground truncate">{item.name}</p>
-                          <p className="text-[10px] text-muted-foreground truncate">{item.description}</p>
-                        </div>
-                        <span className="text-muted-foreground truncate" title={item.manufacturer}>{item.manufacturer}</span>
-                        <div className="flex items-center justify-center gap-0.5">
-                          <button onClick={() => updateQty(item.id, -1)} className="rounded p-0.5 hover:bg-secondary transition-colors">
-                            <Minus className="h-3 w-3" />
+                      <div key={item.id}>
+                        <div className="grid grid-cols-[32px_56px_1.5fr_1fr_60px_70px_70px_64px_70px_64px_70px_56px_32px] gap-1 items-center px-3 py-2.5 border-b border-border/50 animate-fade-in text-xs">
+                          <span className="text-muted-foreground font-medium">{item.sno}</span>
+                          <span className="text-muted-foreground font-mono truncate" title={item.mfCode}>{item.mfCode}</span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-card-foreground truncate">{item.name}</p>
+                            <p className="text-[10px] text-muted-foreground truncate">{item.description}</p>
+                          </div>
+                          <span className="text-muted-foreground truncate" title={item.manufacturer}>{item.manufacturer}</span>
+                          <div className="flex items-center justify-center gap-0.5">
+                            <button onClick={() => updateQty(item.id, -1)} className="rounded p-0.5 hover:bg-secondary transition-colors">
+                              <Minus className="h-3 w-3" />
+                            </button>
+                            <span className="w-6 text-center text-xs font-semibold">{item.qty}</span>
+                            <button onClick={() => updateQty(item.id, 1)} className="rounded p-0.5 hover:bg-secondary transition-colors">
+                              <Plus className="h-3 w-3" />
+                            </button>
+                          </div>
+                          <p className="text-right text-muted-foreground">₹{item.cost}</p>
+                          <p className="text-center text-muted-foreground">{item.taxCat}</p>
+                          <span className="font-mono text-muted-foreground">{item.batch}</span>
+                          <span className="text-muted-foreground">{item.expiry}</span>
+                          <p className="text-right font-semibold">₹{item.mrp}</p>
+                          <div className="flex justify-end">
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={item.discPct}
+                              onChange={e => updateDiscount(item.id, parseFloat(e.target.value) || 0)}
+                              className="w-12 rounded border border-border bg-background px-1 py-0.5 text-xs text-right focus:outline-none focus:ring-1 focus:ring-ring"
+                            />
+                          </div>
+                          <div className="flex justify-center">
+                            {!item.isBag && (
+                              <button
+                                onClick={() => setDosageTarget(item)}
+                                className={`rounded p-1 transition-colors ${item.dosageLabel ? "bg-primary/10 text-primary" : "hover:bg-secondary text-muted-foreground"}`}
+                                title={item.dosageLabel || "Set dosage"}
+                              >
+                                <Pill className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                          <button onClick={() => removeItem(item.id)} className="rounded p-1 hover:bg-destructive/10 transition-colors">
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
                           </button>
-                          <span className="w-6 text-center text-xs font-semibold">{item.qty}</span>
-                          <button onClick={() => updateQty(item.id, 1)} className="rounded p-0.5 hover:bg-secondary transition-colors">
-                            <Plus className="h-3 w-3" />
-                          </button>
                         </div>
-                        <p className="text-right text-muted-foreground">₹{item.cost}</p>
-                        <p className="text-center text-muted-foreground">{item.taxCat}</p>
-                        <span className="font-mono text-muted-foreground">{item.batch}</span>
-                        <span className="text-muted-foreground">{item.expiry}</span>
-                        <p className="text-right font-semibold">₹{item.mrp}</p>
-                        <div className="flex justify-end">
-                          <input
-                            type="number"
-                            min={0}
-                            max={100}
-                            value={item.discPct}
-                            onChange={e => updateDiscount(item.id, parseFloat(e.target.value) || 0)}
-                            className="w-12 rounded border border-border bg-background px-1 py-0.5 text-xs text-right focus:outline-none focus:ring-1 focus:ring-ring"
-                          />
-                        </div>
-                        <button onClick={() => removeItem(item.id)} className="rounded p-1 hover:bg-destructive/10 transition-colors">
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </button>
+                        {/* Dosage label row */}
+                        {item.dosageLabel && (
+                          <div className="px-3 pb-2 pt-0.5 border-b border-border/50">
+                            <p className="text-[11px] text-primary bg-primary/5 rounded px-2 py-1 inline-block">
+                              💊 {item.dosageLabel}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     ))}
                     {/* Totals row */}
-                    <div className="grid grid-cols-[32px_56px_1.5fr_1fr_60px_70px_70px_64px_70px_64px_70px_32px] gap-1 items-center px-3 py-2.5 bg-secondary/30 text-xs font-semibold">
+                    <div className="grid grid-cols-[32px_56px_1.5fr_1fr_60px_70px_70px_64px_70px_64px_70px_56px_32px] gap-1 items-center px-3 py-2.5 bg-secondary/30 text-xs font-semibold">
                       <span></span>
                       <span></span>
                       <span className="text-card-foreground">{cart.length} item(s)</span>
@@ -209,6 +272,7 @@ const POSBilling = () => {
                       <span></span>
                       <span></span>
                       <span className="text-right text-card-foreground">₹{subtotal.toFixed(2)}</span>
+                      <span></span>
                       <span></span>
                     </div>
                   </>
@@ -266,6 +330,33 @@ const POSBilling = () => {
           Complete Sale & Print Bill
         </button>
       </div>
+
+      {/* Dosage Builder Dialog */}
+      <Dialog open={!!dosageTarget} onOpenChange={() => setDosageTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pill className="h-5 w-5 text-primary" />
+              Dosage Builder
+            </DialogTitle>
+            <DialogDescription>Build structured dosage instructions</DialogDescription>
+          </DialogHeader>
+          {dosageTarget && (
+            <DosageBuilder
+              medicineName={dosageTarget.name}
+              onDosageChange={(label) => setDosageLabel(dosageTarget.id, label)}
+              initialDosage={dosageTarget.dosageLabel}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Bag Selector */}
+      <BagSelector
+        open={showBagSelector}
+        onOpenChange={setShowBagSelector}
+        onSelect={addBagToCart}
+      />
     </div>
   );
 };

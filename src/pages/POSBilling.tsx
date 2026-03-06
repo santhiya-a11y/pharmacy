@@ -2,14 +2,18 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone, Users,
-  ShoppingBag, Pill, ArrowLeft, Keyboard, Clock, User, Pause, Printer, Hash
+  ShoppingBag, Pill, ArrowLeft, Keyboard, Clock, User, Pause, Printer, Hash,
+  AlertTriangle, FileText, ChevronRight, X
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { toast } from "sonner";
 import DosageBuilder from "@/components/billing/DosageBuilder";
 import BagSelector, { BagItem } from "@/components/billing/BagSelector";
+import CustomerSelector, { Customer } from "@/components/billing/CustomerSelector";
+import SaleReceiptDialog from "@/components/billing/SaleReceiptDialog";
 
 interface CartItem {
   sno: number;
@@ -28,16 +32,18 @@ interface CartItem {
   discPct: number;
   dosageLabel?: string;
   isBag?: boolean;
+  requiresRx?: boolean;
+  rxVerified?: boolean;
 }
 
 const sampleMedicines = [
-  { id: 1, name: "Dolo 650mg", description: "Paracetamol 650mg Tablet", generic: "Paracetamol", mfCode: "ML-DOL", manufacturer: "Micro Labs", batch: "B102", expiry: "08/2026", mrp: 30, cost: 18, stock: 250, gst: 12, taxCat: "GST 12%" },
-  { id: 2, name: "Azithromycin 500mg", description: "Azithromycin 500mg Tablet", generic: "Azithromycin", mfCode: "CP-AZI", manufacturer: "Cipla Ltd", batch: "A45", expiry: "12/2026", mrp: 100, cost: 62, stock: 45, gst: 12, taxCat: "GST 12%" },
-  { id: 3, name: "Cetirizine 10mg", description: "Cetirizine HCl 10mg Tablet", generic: "Cetirizine", mfCode: "DR-CET", manufacturer: "Dr. Reddy's", batch: "C78", expiry: "03/2027", mrp: 30, cost: 12, stock: 180, gst: 12, taxCat: "GST 12%" },
-  { id: 4, name: "Pantoprazole 40mg", description: "Pantoprazole Sodium 40mg", generic: "Pantoprazole", mfCode: "SN-PAN", manufacturer: "Sun Pharma", batch: "P12", expiry: "06/2026", mrp: 60, cost: 28, stock: 92, gst: 12, taxCat: "GST 12%" },
-  { id: 5, name: "Amoxicillin 250mg", description: "Amoxicillin Trihydrate 250mg", generic: "Amoxicillin", mfCode: "GS-AMX", manufacturer: "GSK Pharma", batch: "AM33", expiry: "05/2026", mrp: 50, cost: 22, stock: 8, gst: 12, taxCat: "GST 12%" },
-  { id: 6, name: "Metformin 500mg", description: "Metformin HCl 500mg Tablet", generic: "Metformin", mfCode: "US-MET", manufacturer: "USV Ltd", batch: "M90", expiry: "11/2026", mrp: 25, cost: 10, stock: 300, gst: 5, taxCat: "GST 5%" },
-  { id: 7, name: "Crocin Advance", description: "Paracetamol 500mg Tablet", generic: "Paracetamol", mfCode: "GS-CRO", manufacturer: "GSK Pharma", batch: "CR55", expiry: "09/2026", mrp: 28, cost: 15, stock: 150, gst: 12, taxCat: "GST 12%" },
+  { id: 1, name: "Dolo 650mg", description: "Paracetamol 650mg Tablet", generic: "Paracetamol", mfCode: "ML-DOL", manufacturer: "Micro Labs", batch: "B102", expiry: "08/2026", mrp: 30, cost: 18, stock: 250, gst: 12, taxCat: "GST 12%", requiresRx: false },
+  { id: 2, name: "Azithromycin 500mg", description: "Azithromycin 500mg Tablet", generic: "Azithromycin", mfCode: "CP-AZI", manufacturer: "Cipla Ltd", batch: "A45", expiry: "12/2026", mrp: 100, cost: 62, stock: 45, gst: 12, taxCat: "GST 12%", requiresRx: true },
+  { id: 3, name: "Cetirizine 10mg", description: "Cetirizine HCl 10mg Tablet", generic: "Cetirizine", mfCode: "DR-CET", manufacturer: "Dr. Reddy's", batch: "C78", expiry: "03/2027", mrp: 30, cost: 12, stock: 180, gst: 12, taxCat: "GST 12%", requiresRx: false },
+  { id: 4, name: "Pantoprazole 40mg", description: "Pantoprazole Sodium 40mg", generic: "Pantoprazole", mfCode: "SN-PAN", manufacturer: "Sun Pharma", batch: "P12", expiry: "06/2026", mrp: 60, cost: 28, stock: 92, gst: 12, taxCat: "GST 12%", requiresRx: true },
+  { id: 5, name: "Amoxicillin 250mg", description: "Amoxicillin Trihydrate 250mg", generic: "Amoxicillin", mfCode: "GS-AMX", manufacturer: "GSK Pharma", batch: "AM33", expiry: "05/2026", mrp: 50, cost: 22, stock: 8, gst: 12, taxCat: "GST 12%", requiresRx: true },
+  { id: 6, name: "Metformin 500mg", description: "Metformin HCl 500mg Tablet", generic: "Metformin", mfCode: "US-MET", manufacturer: "USV Ltd", batch: "M90", expiry: "11/2026", mrp: 25, cost: 10, stock: 300, gst: 5, taxCat: "GST 5%", requiresRx: true },
+  { id: 7, name: "Crocin Advance", description: "Paracetamol 500mg Tablet", generic: "Paracetamol", mfCode: "GS-CRO", manufacturer: "GSK Pharma", batch: "CR55", expiry: "09/2026", mrp: 28, cost: 15, stock: 150, gst: 12, taxCat: "GST 12%", requiresRx: false },
 ];
 
 const paymentMethods = [
@@ -54,10 +60,15 @@ const POSBilling = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showBagSelector, setShowBagSelector] = useState(false);
+  const [showCustomerSelector, setShowCustomerSelector] = useState(false);
   const [dosageTarget, setDosageTarget] = useState<CartItem | null>(null);
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerName, setCustomerName] = useState("");
-  const [invoiceNo] = useState(() => `INV-${Date.now().toString(36).toUpperCase()}`);
+  const [invoiceNo, setInvoiceNo] = useState(() => `INV-${Date.now().toString(36).toUpperCase()}`);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [rxWarningItem, setRxWarningItem] = useState<CartItem | null>(null);
 
   const filtered = search.length > 0
     ? sampleMedicines.filter(m =>
@@ -76,11 +87,12 @@ const POSBilling = () => {
       if (e.key === "F6") { e.preventDefault(); setSelectedPayment("UPI"); }
       if (e.key === "F7") { e.preventDefault(); setSelectedPayment("Card"); }
       if (e.key === "F8") { e.preventDefault(); setSelectedPayment("Credit"); }
+      if (e.key === "F9") { e.preventDefault(); handleCompleteSale(); }
       if (e.key === "Escape") { setShowSuggestions(false); setSearch(""); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [cart, selectedPayment]);
 
   const addToCart = useCallback((med: typeof sampleMedicines[0]) => {
     setCart(prev => {
@@ -90,9 +102,16 @@ const POSBilling = () => {
         sno: prev.length + 1, id: med.id, name: med.name, description: med.description,
         mfCode: med.mfCode, manufacturer: med.manufacturer, batch: med.batch, expiry: med.expiry,
         mrp: med.mrp, cost: med.cost, qty: 1, gst: med.gst, taxCat: med.taxCat, discPct: 0,
+        requiresRx: med.requiresRx, rxVerified: false,
       }];
     });
     setSearch(""); setShowSuggestions(false);
+    if (med.requiresRx) {
+      toast.warning(`${med.name} requires a prescription`, { description: "Please verify prescription before dispensing." });
+    }
+    if (med.stock < 10) {
+      toast.info(`Low stock: Only ${med.stock} units of ${med.name} remaining`);
+    }
   }, []);
 
   const addBagToCart = (bag: BagItem) => {
@@ -120,6 +139,10 @@ const POSBilling = () => {
     setCart(prev => prev.map(c => c.id === id ? { ...c, dosageLabel: label } : c));
   };
 
+  const toggleRxVerified = (id: number) => {
+    setCart(prev => prev.map(c => c.id === id ? { ...c, rxVerified: !c.rxVerified } : c));
+  };
+
   const getItemTotal = (item: CartItem) => {
     const base = item.mrp * item.qty;
     return base - (base * item.discPct / 100);
@@ -130,6 +153,48 @@ const POSBilling = () => {
   const totalDiscount = cart.reduce((s, c) => s + (c.mrp * c.qty * c.discPct / 100), 0);
   const total = subtotal + totalGst;
   const totalQty = cart.reduce((s, c) => s + c.qty, 0);
+  const rxItems = cart.filter(c => c.requiresRx);
+  const unverifiedRx = rxItems.filter(c => !c.rxVerified);
+
+  const handleCompleteSale = async () => {
+    if (cart.length === 0) { toast.error("Add items to cart first"); return; }
+    if (!selectedPayment) { toast.error("Select a payment method"); return; }
+    if (unverifiedRx.length > 0) {
+      toast.error(`${unverifiedRx.length} medicine(s) require prescription verification`, {
+        description: unverifiedRx.map(i => i.name).join(", "),
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      // Simulate processing
+      await new Promise(resolve => setTimeout(resolve, 800));
+      toast.success("Sale completed successfully!");
+      setShowReceipt(true);
+    } catch (error) {
+      console.error("Sale error:", error);
+      toast.error("Failed to complete sale. Please try again.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleNewSale = () => {
+    setCart([]);
+    setSelectedPayment(null);
+    setSelectedCustomer(null);
+    setCustomerName("");
+    setInvoiceNo(`INV-${Date.now().toString(36).toUpperCase()}`);
+    setShowReceipt(false);
+    searchRef.current?.focus();
+  };
+
+  const handleCustomerSelect = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setCustomerName(customer.name);
+    toast.success(`Customer: ${customer.name}`);
+  };
 
   return (
     <div className="flex h-screen bg-background">
@@ -167,7 +232,12 @@ const POSBilling = () => {
                     className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-accent transition-colors border-b border-border/40 last:border-0"
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-card-foreground">{med.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-card-foreground">{med.name}</p>
+                        {med.requiresRx && (
+                          <Badge variant="outline" className="text-[9px] h-4 px-1 border-destructive/40 text-destructive">Rx</Badge>
+                        )}
+                      </div>
                       <p className="text-[11px] text-muted-foreground truncate">{med.description} · {med.manufacturer} · MF: {med.mfCode}</p>
                       <p className="text-[11px] text-muted-foreground">Batch: {med.batch} · Exp: {med.expiry}</p>
                     </div>
@@ -205,12 +275,21 @@ const POSBilling = () => {
             <TooltipContent>Hold current bill</TooltipContent>
           </Tooltip>
 
-          {/* Time */}
           <div className="hidden xl:flex items-center gap-1.5 text-xs text-muted-foreground">
             <Clock className="h-3.5 w-3.5" />
             <span>{new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</span>
           </div>
         </header>
+
+        {/* Prescription Warning Banner */}
+        {unverifiedRx.length > 0 && (
+          <div className="flex items-center gap-3 bg-destructive/5 border-b border-destructive/20 px-4 py-2">
+            <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+            <p className="text-xs text-destructive font-medium flex-1">
+              {unverifiedRx.length} item(s) require prescription verification: {unverifiedRx.map(i => i.name).join(", ")}
+            </p>
+          </div>
+        )}
 
         {/* Cart Table */}
         <div className="flex-1 overflow-hidden">
@@ -230,7 +309,7 @@ const POSBilling = () => {
                   <th className="text-right px-2 py-2.5 w-16">MRP</th>
                   <th className="text-right px-2 py-2.5 w-16">Disc %</th>
                   <th className="text-right px-2 py-2.5 w-20">Total</th>
-                  <th className="text-center px-2 py-2.5 w-12">Dose</th>
+                  <th className="text-center px-2 py-2.5 w-16">Rx/Dose</th>
                   <th className="w-8 px-2 py-2.5"></th>
                 </tr>
               </thead>
@@ -250,45 +329,68 @@ const POSBilling = () => {
                 ) : (
                   <>
                     {cart.map(item => (
-                      <>
-                        <tr key={item.id} className="border-b border-border/40 hover:bg-accent/30 transition-colors">
-                          <td className="px-3 py-2.5 text-muted-foreground font-medium">{item.sno}</td>
-                          <td className="px-2 py-2.5 font-mono text-muted-foreground truncate" title={item.mfCode}>{item.mfCode}</td>
-                          <td className="px-2 py-2.5">
-                            <p className="text-sm font-medium text-card-foreground truncate">{item.name}</p>
-                            <p className="text-[10px] text-muted-foreground truncate">{item.description}</p>
-                          </td>
-                          <td className="px-2 py-2.5 text-muted-foreground truncate" title={item.manufacturer}>{item.manufacturer}</td>
-                          <td className="px-2 py-2.5">
-                            <div className="flex items-center justify-center gap-1">
-                              <button onClick={() => updateQty(item.id, -1)} className="rounded-md p-1 hover:bg-secondary transition-colors active:scale-95">
-                                <Minus className="h-3 w-3" />
-                              </button>
-                              <span className="w-7 text-center text-xs font-bold tabular-nums">{item.qty}</span>
-                              <button onClick={() => updateQty(item.id, 1)} className="rounded-md p-1 hover:bg-secondary transition-colors active:scale-95">
-                                <Plus className="h-3 w-3" />
-                              </button>
+                      <tr key={item.id} className={`border-b border-border/40 hover:bg-accent/30 transition-colors ${item.requiresRx && !item.rxVerified ? "bg-destructive/[0.02]" : ""}`}>
+                        <td className="px-3 py-2.5 text-muted-foreground font-medium">{item.sno}</td>
+                        <td className="px-2 py-2.5 font-mono text-muted-foreground truncate" title={item.mfCode}>{item.mfCode}</td>
+                        <td className="px-2 py-2.5">
+                          <div className="flex items-center gap-1.5">
+                            {item.requiresRx && !item.rxVerified && (
+                              <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-card-foreground truncate">{item.name}</p>
+                              <p className="text-[10px] text-muted-foreground truncate">{item.description}</p>
+                              {item.dosageLabel && (
+                                <p className="text-[10px] text-primary mt-0.5 truncate">💊 {item.dosageLabel}</p>
+                              )}
                             </div>
-                          </td>
-                          <td className="px-2 py-2.5 text-right text-muted-foreground tabular-nums">₹{item.cost}</td>
-                          <td className="px-2 py-2.5 text-center">
-                            <Badge variant="outline" className="text-[9px] h-4 px-1 font-normal">{item.taxCat}</Badge>
-                          </td>
-                          <td className="px-2 py-2.5 font-mono text-muted-foreground">{item.batch}</td>
-                          <td className="px-2 py-2.5 text-muted-foreground">{item.expiry}</td>
-                          <td className="px-2 py-2.5 text-right font-semibold tabular-nums">₹{item.mrp}</td>
-                          <td className="px-2 py-2.5">
-                            <div className="flex justify-end">
-                              <input
-                                type="number" min={0} max={100} value={item.discPct}
-                                onChange={e => updateDiscount(item.id, parseFloat(e.target.value) || 0)}
-                                className="w-12 rounded-md border border-border bg-background px-1.5 py-1 text-xs text-right tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
-                              />
-                            </div>
-                          </td>
-                          <td className="px-2 py-2.5 text-right font-bold tabular-nums text-card-foreground">₹{getItemTotal(item).toFixed(2)}</td>
-                          <td className="px-2 py-2.5 text-center">
-                            {!item.isBag && (
+                          </div>
+                        </td>
+                        <td className="px-2 py-2.5 text-muted-foreground truncate" title={item.manufacturer}>{item.manufacturer}</td>
+                        <td className="px-2 py-2.5">
+                          <div className="flex items-center justify-center gap-1">
+                            <button onClick={() => updateQty(item.id, -1)} className="rounded-md p-1 hover:bg-secondary transition-colors active:scale-95">
+                              <Minus className="h-3 w-3" />
+                            </button>
+                            <span className="w-7 text-center text-xs font-bold tabular-nums">{item.qty}</span>
+                            <button onClick={() => updateQty(item.id, 1)} className="rounded-md p-1 hover:bg-secondary transition-colors active:scale-95">
+                              <Plus className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-2 py-2.5 text-right text-muted-foreground tabular-nums">₹{item.cost}</td>
+                        <td className="px-2 py-2.5 text-center">
+                          <Badge variant="outline" className="text-[9px] h-4 px-1 font-normal">{item.taxCat}</Badge>
+                        </td>
+                        <td className="px-2 py-2.5 font-mono text-muted-foreground">{item.batch}</td>
+                        <td className="px-2 py-2.5 text-muted-foreground">{item.expiry}</td>
+                        <td className="px-2 py-2.5 text-right font-semibold tabular-nums">₹{item.mrp}</td>
+                        <td className="px-2 py-2.5">
+                          <div className="flex justify-end">
+                            <input
+                              type="number" min={0} max={100} value={item.discPct}
+                              onChange={e => updateDiscount(item.id, parseFloat(e.target.value) || 0)}
+                              className="w-12 rounded-md border border-border bg-background px-1.5 py-1 text-xs text-right tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
+                            />
+                          </div>
+                        </td>
+                        <td className="px-2 py-2.5 text-right font-bold tabular-nums text-card-foreground">₹{getItemTotal(item).toFixed(2)}</td>
+                        <td className="px-2 py-2.5">
+                          {!item.isBag && (
+                            <div className="flex items-center gap-0.5 justify-center">
+                              {item.requiresRx && (
+                                <button
+                                  onClick={() => toggleRxVerified(item.id)}
+                                  className={`rounded-md p-1.5 transition-colors text-[10px] font-bold ${
+                                    item.rxVerified
+                                      ? "bg-chart-2/10 text-chart-2"
+                                      : "bg-destructive/10 text-destructive hover:bg-destructive/20"
+                                  }`}
+                                  title={item.rxVerified ? "Prescription verified" : "Click to verify prescription"}
+                                >
+                                  <FileText className="h-3.5 w-3.5" />
+                                </button>
+                              )}
                               <button
                                 onClick={() => setDosageTarget(item)}
                                 className={`rounded-md p-1.5 transition-colors ${item.dosageLabel ? "bg-primary/10 text-primary" : "hover:bg-secondary text-muted-foreground"}`}
@@ -296,25 +398,15 @@ const POSBilling = () => {
                               >
                                 <Pill className="h-3.5 w-3.5" />
                               </button>
-                            )}
-                          </td>
-                          <td className="px-2 py-2.5">
-                            <button onClick={() => removeItem(item.id)} className="rounded-md p-1.5 hover:bg-destructive/10 transition-colors active:scale-95">
-                              <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                            </button>
-                          </td>
-                        </tr>
-                        {item.dosageLabel && (
-                          <tr key={`dose-${item.id}`} className="border-b border-border/40">
-                            <td></td>
-                            <td colSpan={13} className="px-2 pb-2 pt-0">
-                              <p className="text-[11px] text-primary bg-primary/5 rounded-md px-2.5 py-1 inline-block">
-                                💊 {item.dosageLabel}
-                              </p>
-                            </td>
-                          </tr>
-                        )}
-                      </>
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-2 py-2.5">
+                          <button onClick={() => removeItem(item.id)} className="rounded-md p-1.5 hover:bg-destructive/10 transition-colors active:scale-95">
+                            <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                          </button>
+                        </td>
+                      </tr>
                     ))}
                   </>
                 )}
@@ -328,9 +420,14 @@ const POSBilling = () => {
           <div className="flex items-center gap-4 text-muted-foreground">
             <span><strong className="text-foreground">{cart.length}</strong> item(s)</span>
             <span><strong className="text-foreground">{totalQty}</strong> units</span>
+            {rxItems.length > 0 && (
+              <span className={unverifiedRx.length > 0 ? "text-destructive" : "text-chart-2"}>
+                <strong>{rxItems.length - unverifiedRx.length}/{rxItems.length}</strong> Rx verified
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3 text-muted-foreground">
-            <span className="hidden md:flex items-center gap-1"><Keyboard className="h-3 w-3" /> F1 Search · F2 Bag · F5-F8 Pay · Esc Clear</span>
+            <span className="hidden md:flex items-center gap-1"><Keyboard className="h-3 w-3" /> F1 Search · F2 Bag · F5-F8 Pay · F9 Complete · Esc Clear</span>
           </div>
         </div>
       </div>
@@ -343,12 +440,28 @@ const POSBilling = () => {
             <User className="h-4 w-4 text-muted-foreground" />
             <span className="text-xs font-semibold text-foreground">Customer</span>
           </div>
-          <Input
-            placeholder="Walk-in customer or search…"
-            value={customerName}
-            onChange={e => setCustomerName(e.target.value)}
-            className="h-9 text-xs bg-secondary/50 border-0"
-          />
+          {selectedCustomer ? (
+            <div className="flex items-center gap-3 bg-accent rounded-xl p-3">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <User className="h-4 w-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground truncate">{selectedCustomer.name}</p>
+                <p className="text-[10px] text-muted-foreground">{selectedCustomer.phone}</p>
+              </div>
+              <button onClick={() => { setSelectedCustomer(null); setCustomerName(""); }} className="p-1 rounded hover:bg-secondary">
+                <X className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowCustomerSelector(true)}
+              className="w-full flex items-center justify-between rounded-xl border border-dashed border-border px-3 py-2.5 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors"
+            >
+              <span>Walk-in customer or search…</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
 
         {/* Bill Summary */}
@@ -379,6 +492,13 @@ const POSBilling = () => {
               <span className="text-2xl font-extrabold text-primary tabular-nums">₹{total.toFixed(2)}</span>
             </div>
           </div>
+
+          {/* Savings callout */}
+          {totalDiscount > 0 && (
+            <div className="bg-chart-2/5 border border-chart-2/20 rounded-lg px-3 py-2 text-center">
+              <p className="text-[11px] text-chart-2 font-semibold">You save ₹{totalDiscount.toFixed(2)} 🎉</p>
+            </div>
+          )}
         </div>
 
         {/* Payment Methods */}
@@ -406,11 +526,17 @@ const POSBilling = () => {
         {/* Actions */}
         <div className="p-4 space-y-2">
           <button
-            disabled={cart.length === 0 || !selectedPayment}
+            onClick={handleCompleteSale}
+            disabled={cart.length === 0 || !selectedPayment || isProcessing}
             className="w-full rounded-xl bg-primary py-3.5 text-sm font-bold text-primary-foreground shadow-lg hover:opacity-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98] flex items-center justify-center gap-2"
           >
-            <Printer className="h-4 w-4" />
-            Complete Sale & Print
+            {isProcessing ? (
+              <div className="h-4 w-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+            ) : (
+              <Printer className="h-4 w-4" />
+            )}
+            {isProcessing ? "Processing…" : "Complete Sale & Print"}
+            {!isProcessing && <kbd className="text-[9px] bg-primary-foreground/20 rounded px-1.5 py-0.5 ml-1">F9</kbd>}
           </button>
           <button
             disabled={cart.length === 0}
@@ -443,6 +569,24 @@ const POSBilling = () => {
 
       {/* Bag Selector */}
       <BagSelector open={showBagSelector} onOpenChange={setShowBagSelector} onSelect={addBagToCart} />
+
+      {/* Customer Selector */}
+      <CustomerSelector open={showCustomerSelector} onOpenChange={setShowCustomerSelector} onSelect={handleCustomerSelect} />
+
+      {/* Sale Receipt */}
+      <SaleReceiptDialog
+        open={showReceipt}
+        onOpenChange={setShowReceipt}
+        invoiceNo={invoiceNo}
+        customerName={customerName}
+        items={cart.map(c => ({ sno: c.sno, name: c.name, batch: c.batch, qty: c.qty, mrp: c.mrp, discPct: c.discPct, total: getItemTotal(c), dosageLabel: c.dosageLabel }))}
+        subtotal={subtotal}
+        discount={totalDiscount}
+        gst={totalGst}
+        total={total}
+        paymentMethod={selectedPayment || "Cash"}
+        onNewSale={handleNewSale}
+      />
     </div>
   );
 };

@@ -1,9 +1,9 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingBag, Check, Upload, X, Image } from "lucide-react";
+import { ShoppingBag, Check } from "lucide-react";
 
 export interface BagItem {
   id: string;
@@ -34,9 +34,6 @@ interface BagSelectorProps {
 
 const BagSelector = ({ open, onOpenChange, onSelect }: BagSelectorProps) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [bags, setBags] = useState<BagItem[]>(DEFAULT_BAGS);
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSelect = (bag: BagItem) => {
     setSelectedId(bag.id);
@@ -47,26 +44,6 @@ const BagSelector = ({ open, onOpenChange, onSelect }: BagSelectorProps) => {
     }, 200);
   };
 
-  const triggerUpload = (bagId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setUploadingId(bagId);
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !uploadingId) return;
-    const url = URL.createObjectURL(file);
-    setBags(prev => prev.map(b => b.id === uploadingId ? { ...b, imageUrl: url } : b));
-    setUploadingId(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const removeImage = (bagId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setBags(prev => prev.map(b => b.id === bagId ? { ...b, imageUrl: undefined } : b));
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
@@ -75,11 +52,10 @@ const BagSelector = ({ open, onOpenChange, onSelect }: BagSelectorProps) => {
             <ShoppingBag className="h-5 w-5 text-primary" />
             Select Bag
           </DialogTitle>
-          <DialogDescription>Choose a bag type to add to the bill. You can upload real product photos.</DialogDescription>
+          <DialogDescription>Choose a bag type to add to the bill. Manage bag images in Settings → Integrations.</DialogDescription>
         </DialogHeader>
-        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2">
-          {bags.map(bag => (
+          {DEFAULT_BAGS.map(bag => (
             <button
               key={bag.id}
               onClick={() => handleSelect(bag)}
@@ -91,33 +67,8 @@ const BagSelector = ({ open, onOpenChange, onSelect }: BagSelectorProps) => {
                   <Check className="h-3 w-3 text-primary-foreground" />
                 </div>
               )}
-              {/* Image or emoji */}
               <div className="relative w-full aspect-square rounded-lg overflow-hidden mb-2 bg-muted/50 flex items-center justify-center">
-                {bag.imageUrl ? (
-                  <>
-                    <img src={bag.imageUrl} alt={bag.name} className="w-full h-full object-cover" />
-                    <button
-                      onClick={(e) => removeImage(bag.id, e)}
-                      className="absolute top-1 right-1 bg-destructive/90 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="h-3 w-3 text-destructive-foreground" />
-                    </button>
-                  </>
-                ) : (
-                  <span className="text-3xl">{bag.icon}</span>
-                )}
-                {/* Upload overlay */}
-                {!bag.imageUrl && (
-                  <button
-                    onClick={(e) => triggerUpload(bag.id, e)}
-                    className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all rounded-lg"
-                  >
-                    <div className="flex flex-col items-center gap-0.5">
-                      <Upload className="h-4 w-4 text-foreground/60" />
-                      <span className="text-[9px] text-foreground/60 font-medium">Upload</span>
-                    </div>
-                  </button>
-                )}
+                <span className="text-3xl">{bag.icon}</span>
               </div>
               <p className="text-xs font-semibold text-foreground leading-tight">{bag.name}</p>
               <div className="flex items-center gap-1.5 mt-1">

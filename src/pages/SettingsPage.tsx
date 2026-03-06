@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,10 +7,10 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Settings, Building2, Receipt, Bell, Shield, Printer,
-  Globe, Database, Users, Save
+  Globe, Database, Users, Save, ShoppingBag, Upload, X, Image
 } from "lucide-react";
 
-type SettingsTab = "store" | "billing" | "notifications" | "security" | "printing" | "integrations";
+type SettingsTab = "store" | "billing" | "notifications" | "security" | "printing" | "bags" | "integrations";
 
 const tabs: { key: SettingsTab; label: string; icon: React.ElementType }[] = [
   { key: "store", label: "Store Details", icon: Building2 },
@@ -18,11 +18,57 @@ const tabs: { key: SettingsTab; label: string; icon: React.ElementType }[] = [
   { key: "notifications", label: "Notifications", icon: Bell },
   { key: "security", label: "Security", icon: Shield },
   { key: "printing", label: "Print Templates", icon: Printer },
+  { key: "bags", label: "Bag Management", icon: ShoppingBag },
   { key: "integrations", label: "Integrations", icon: Globe },
+];
+
+interface BagConfig {
+  id: string;
+  name: string;
+  size: string;
+  price: number;
+  icon: string;
+  imageUrl?: string;
+}
+
+const DEFAULT_BAG_CONFIGS: BagConfig[] = [
+  { id: "bag-sm-white", name: "Small White Bag", size: "Small", price: 2, icon: "🛍️" },
+  { id: "bag-md-white", name: "Medium White Bag", size: "Medium", price: 3, icon: "🛍️" },
+  { id: "bag-lg-white", name: "Large White Bag", size: "Large", price: 5, icon: "🛍️" },
+  { id: "bag-sm-brown", name: "Small Paper Bag", size: "Small", price: 3, icon: "📦" },
+  { id: "bag-md-brown", name: "Medium Paper Bag", size: "Medium", price: 5, icon: "📦" },
+  { id: "bag-lg-brown", name: "Large Paper Bag", size: "Large", price: 7, icon: "📦" },
+  { id: "bag-branded", name: "Branded Bag", size: "Standard", price: 10, icon: "🏷️" },
+  { id: "bag-eco", name: "Eco Cloth Bag", size: "Standard", price: 15, icon: "♻️" },
 ];
 
 const SettingsPage = () => {
   const [activeTab, setActiveTab] = useState<SettingsTab>("store");
+  const [bagConfigs, setBagConfigs] = useState<BagConfig[]>(DEFAULT_BAG_CONFIGS);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingBagId, setUploadingBagId] = useState<string | null>(null);
+
+  const handleBagImageUpload = (bagId: string) => {
+    setUploadingBagId(bagId);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadingBagId) return;
+    const url = URL.createObjectURL(file);
+    setBagConfigs(prev => prev.map(b => b.id === uploadingBagId ? { ...b, imageUrl: url } : b));
+    setUploadingBagId(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeBagImage = (bagId: string) => {
+    setBagConfigs(prev => prev.map(b => b.id === bagId ? { ...b, imageUrl: undefined } : b));
+  };
+
+  const updateBagPrice = (bagId: string, price: number) => {
+    setBagConfigs(prev => prev.map(b => b.id === bagId ? { ...b, price } : b));
+  };
 
   return (
     <div className="space-y-5 animate-fade-in">
@@ -30,6 +76,8 @@ const SettingsPage = () => {
         <h1 className="text-xl font-bold text-foreground">Settings</h1>
         <p className="text-sm text-muted-foreground">Configure your pharmacy system preferences</p>
       </div>
+
+      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
 
       <div className="flex gap-5">
         {/* Sidebar Tabs */}
@@ -176,6 +224,74 @@ const SettingsPage = () => {
                   </div>
                 ))}
                 <Button size="sm"><Save className="h-4 w-4 mr-1" />Save Changes</Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === "bags" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <ShoppingBag className="h-4 w-4 text-primary" />
+                  Bag Management
+                </CardTitle>
+                <CardDescription>Upload real product images and configure bag prices for POS billing</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {bagConfigs.map(bag => (
+                    <div key={bag.id} className="rounded-xl border border-border p-3 space-y-2">
+                      {/* Image area */}
+                      <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-muted/50 flex items-center justify-center group">
+                        {bag.imageUrl ? (
+                          <>
+                            <img src={bag.imageUrl} alt={bag.name} className="w-full h-full object-cover" />
+                            <button
+                              onClick={() => removeBagImage(bag.id)}
+                              className="absolute top-1 right-1 bg-destructive/90 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X className="h-3 w-3 text-destructive-foreground" />
+                            </button>
+                            <button
+                              onClick={() => handleBagImageUpload(bag.id)}
+                              className="absolute bottom-1 right-1 bg-background/90 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity border border-border"
+                            >
+                              <Upload className="h-3 w-3 text-foreground" />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleBagImageUpload(bag.id)}
+                            className="w-full h-full flex flex-col items-center justify-center gap-1 hover:bg-muted transition-colors rounded-lg"
+                          >
+                            <span className="text-2xl">{bag.icon}</span>
+                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Upload className="h-3 w-3" />
+                              Upload
+                            </div>
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-xs font-semibold text-foreground truncate">{bag.name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="outline" className="text-[9px] h-4 px-1">{bag.size}</Badge>
+                        <div className="flex items-center gap-0.5 flex-1">
+                          <span className="text-[10px] text-muted-foreground">₹</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={bag.price}
+                            onChange={e => updateBagPrice(bag.id, parseFloat(e.target.value) || 0)}
+                            className="w-full rounded border border-border bg-background px-1.5 py-0.5 text-xs text-right tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4">
+                  <Button size="sm"><Save className="h-4 w-4 mr-1" />Save Bag Settings</Button>
+                </div>
               </CardContent>
             </Card>
           )}

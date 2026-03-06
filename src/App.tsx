@@ -10,12 +10,16 @@ import MedicinesPage from "./pages/MedicinesPage";
 import InventoryPage from "./pages/InventoryPage";
 import ReportsPage from "./pages/ReportsPage";
 import StaffPage from "./pages/StaffPage";
-import PlaceholderPage from "./components/PlaceholderPage";
+import PrescriptionsPage from "./pages/PrescriptionsPage";
+import CustomersPage from "./pages/CustomersPage";
+import PurchasesPage from "./pages/PurchasesPage";
+import SuppliersPage from "./pages/SuppliersPage";
+import StockAlertsPage from "./pages/StockAlertsPage";
+import ActivityLogPage from "./pages/ActivityLogPage";
+import ReturnsPage from "./pages/ReturnsPage";
+import ExpensesPage from "./pages/ExpensesPage";
+import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
-import {
-  Package, Truck, UserCircle, FileText, AlertTriangle,
-  Tags, RotateCcw, BarChart3, Wallet, UserCog, Activity, Settings
-} from "lucide-react";
 
 const queryClient = new QueryClient();
 
@@ -30,18 +34,17 @@ const App = () => (
           <Route path="/pos" element={<AppLayout><POSBilling /></AppLayout>} />
           <Route path="/medicines" element={<AppLayout><MedicinesPage /></AppLayout>} />
           <Route path="/inventory" element={<AppLayout><InventoryPage /></AppLayout>} />
-          <Route path="/purchases" element={<AppLayout><PlaceholderPage title="Purchase Management" description="Manage purchase orders, goods received notes, and supplier invoices." icon={Package} /></AppLayout>} />
-          <Route path="/suppliers" element={<AppLayout><PlaceholderPage title="Supplier Management" description="Track suppliers, pricing, credit terms, and order history." icon={Truck} /></AppLayout>} />
-          <Route path="/customers" element={<AppLayout><PlaceholderPage title="Customer Management" description="Manage customer profiles, loyalty programs, and purchase history." icon={UserCircle} /></AppLayout>} />
-          <Route path="/prescriptions" element={<AppLayout><PlaceholderPage title="Prescription Management" description="Upload, scan, and manage doctor prescriptions with OCR." icon={FileText} /></AppLayout>} />
-          <Route path="/expiry" element={<AppLayout><PlaceholderPage title="Expiry & Dead Stock" description="Track expiring medicines, manage returns, and reduce losses." icon={AlertTriangle} /></AppLayout>} />
-          <Route path="/offers" element={<AppLayout><PlaceholderPage title="Offers & Discounts" description="Create product discounts, loyalty rewards, and supplier schemes." icon={Tags} /></AppLayout>} />
-          <Route path="/returns" element={<AppLayout><PlaceholderPage title="Returns Management" description="Process customer returns and supplier credit notes." icon={RotateCcw} /></AppLayout>} />
+          <Route path="/purchases" element={<AppLayout><PurchasesPage /></AppLayout>} />
+          <Route path="/suppliers" element={<AppLayout><SuppliersPage /></AppLayout>} />
+          <Route path="/customers" element={<AppLayout><CustomersPage /></AppLayout>} />
+          <Route path="/prescriptions" element={<AppLayout><PrescriptionsPage /></AppLayout>} />
+          <Route path="/expiry" element={<AppLayout><StockAlertsPage /></AppLayout>} />
+          <Route path="/returns" element={<AppLayout><ReturnsPage /></AppLayout>} />
           <Route path="/reports" element={<AppLayout><ReportsPage /></AppLayout>} />
-          <Route path="/expenses" element={<AppLayout><PlaceholderPage title="Expense Tracking" description="Track daily expenses, overhead costs, and financial summaries." icon={Wallet} /></AppLayout>} />
+          <Route path="/expenses" element={<AppLayout><ExpensesPage /></AppLayout>} />
           <Route path="/staff" element={<AppLayout><StaffPage /></AppLayout>} />
-          <Route path="/activity" element={<AppLayout><PlaceholderPage title="Activity Log" description="View audit trail of all system actions and changes." icon={Activity} /></AppLayout>} />
-          <Route path="/settings" element={<AppLayout><PlaceholderPage title="Settings" description="Configure store details, GST, print templates, and system preferences." icon={Settings} /></AppLayout>} />
+          <Route path="/activity" element={<AppLayout><ActivityLogPage /></AppLayout>} />
+          <Route path="/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

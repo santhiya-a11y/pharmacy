@@ -20,6 +20,7 @@ import ActivityLogPage from "./pages/ActivityLogPage";
 import ReturnsPage from "./pages/ReturnsPage";
 import ExpensesPage from "./pages/ExpensesPage";
 import SettingsPage from "./pages/SettingsPage";
+import CountersPage from "./pages/CountersPage";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import NotFound from "./pages/NotFound";
 
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/reports" element={<AppLayout><ReportsPage /></AppLayout>} />
             <Route path="/expenses" element={<AppLayout><ExpensesPage /></AppLayout>} />
             <Route path="/staff" element={<AppLayout><StaffPage /></AppLayout>} />
+            <Route path="/counters" element={<AppLayout><CountersPage /></AppLayout>} />
             <Route path="/activity" element={<AppLayout><ActivityLogPage /></AppLayout>} />
             <Route path="/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
             <Route path="/employee" element={<AppLayout><EmployeeDashboard /></AppLayout>} />

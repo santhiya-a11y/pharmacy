@@ -76,6 +76,18 @@ const SettingsPage = () => {
     setBagConfigs(prev => prev.map(b => b.id === bagId ? { ...b, price } : b));
   };
 
+  const handleAddBag = () => {
+    if (!newBag.name.trim()) return;
+    const id = `bag-custom-${Date.now()}`;
+    setBagConfigs(prev => [...prev, { id, name: newBag.name, size: newBag.size, price: newBag.price, icon: newBag.icon }]);
+    setNewBag({ name: "", size: "Medium", price: 0, icon: "🛍️" });
+    setShowAddBag(false);
+  };
+
+  const handleDeleteBag = (bagId: string) => {
+    setBagConfigs(prev => prev.filter(b => b.id !== bagId));
+  };
+
   return (
     <div className="space-y-5 animate-fade-in">
       <div>

@@ -20,6 +20,7 @@ import ActivityLogPage from "./pages/ActivityLogPage";
 import ReturnsPage from "./pages/ReturnsPage";
 import ExpensesPage from "./pages/ExpensesPage";
 import SettingsPage from "./pages/SettingsPage";
+import CountersPage from "./pages/CountersPage";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import NotFound from "./pages/NotFound";
 

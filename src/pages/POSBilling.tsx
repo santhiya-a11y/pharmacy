@@ -518,7 +518,7 @@ const POSBilling = () => {
               <tbody>
                 {cart.length === 0 ? (
                   <tr>
-                    <td colSpan={14} className="text-center py-24">
+                    <td colSpan={15} className="text-center py-24">
                       <div className="flex flex-col items-center text-muted-foreground">
                         <div className="w-16 h-16 rounded-full bg-secondary/60 flex items-center justify-center mb-4">
                           <Search className="h-7 w-7 opacity-40" />

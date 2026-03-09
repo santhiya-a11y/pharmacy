@@ -171,8 +171,8 @@ const ItemDetailSheet = ({ item, open, onClose, onAddToReorder, isInReorder }: I
                 className="w-full gap-2"
                 size="sm"
               >
-                <ShoppingCart className="h-4 w-4" />
-                {isInReorder ? "Already in Reorder List" : "Add to Reorder List"}
+                <ClipboardList className="h-4 w-4" />
+                {isInReorder ? "Already in Draft PO" : "Add to Purchase Order"}
               </Button>
             </div>
           )}

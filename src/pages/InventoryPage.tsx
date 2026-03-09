@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Filter, Plus } from "lucide-react";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { Input } from "@/components/ui/input";
 import AddStockDialog from "@/components/inventory/AddStockDialog";
 import ItemDetailSheet from "@/components/inventory/ItemDetailSheet";

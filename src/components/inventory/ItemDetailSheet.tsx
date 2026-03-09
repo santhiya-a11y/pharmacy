@@ -1,7 +1,7 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, MapPin, Package, ShoppingCart, Calendar, Building2, Hash, Pill, TrendingDown } from "lucide-react";
+import { AlertTriangle, MapPin, Package, ClipboardList, Calendar, Building2, Hash, Pill, TrendingDown } from "lucide-react";
 
 export interface InventoryItem {
   name: string;
@@ -105,10 +105,10 @@ const ItemDetailSheet = ({ item, open, onClose, onAddToReorder, isInReorder }: I
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {item.status === "low"
-                      ? `Only ${item.stock} units left. Reorder now to avoid stockout.`
+                      ? `Only ${item.stock} units left. Raise a PO to avoid stockout.`
                       : expiryInfo.level === "expired"
-                      ? `₹${estimatedValue.toLocaleString()} worth of expired stock at risk.`
-                      : `₹${estimatedValue.toLocaleString()} worth of stock may expire. Order fresh batch.`}
+                      ? `₹${estimatedValue.toLocaleString()} worth of expired stock. Remove & reorder.`
+                      : `₹${estimatedValue.toLocaleString()} worth of stock may expire. Raise PO for fresh batch.`}
                   </p>
                 </div>
               </div>
@@ -119,8 +119,8 @@ const ItemDetailSheet = ({ item, open, onClose, onAddToReorder, isInReorder }: I
                 variant={isInReorder ? "outline" : "default"}
                 size="sm"
               >
-                <ShoppingCart className="h-4 w-4" />
-                {isInReorder ? "Added to Reorder List" : "Add to Reorder"}
+                <ClipboardList className="h-4 w-4" />
+                {isInReorder ? "Added to Purchase Order" : "Add to Purchase Order"}
               </Button>
             </div>
           )}
@@ -171,8 +171,8 @@ const ItemDetailSheet = ({ item, open, onClose, onAddToReorder, isInReorder }: I
                 className="w-full gap-2"
                 size="sm"
               >
-                <ShoppingCart className="h-4 w-4" />
-                {isInReorder ? "Already in Reorder List" : "Add to Reorder List"}
+                <ClipboardList className="h-4 w-4" />
+                {isInReorder ? "Already in Draft PO" : "Add to Purchase Order"}
               </Button>
             </div>
           )}

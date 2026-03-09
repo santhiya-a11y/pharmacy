@@ -196,13 +196,33 @@ const POSBilling = () => {
     setCart(prev => prev.map(c => c.id === id ? { ...c, dosageLabel: label } : c));
   };
 
-  // Rx dialog
+  // Rx / Frequency click — context-aware
+  const handleRxClick = (itemId: number) => {
+    const item = cart.find(c => c.id === itemId);
+    if (!item) return;
+    if (item.requiresRx) {
+      // Prescription item → open Rx dialog
+      openRxDialog(itemId);
+    } else {
+      // Non-prescription item → open frequency selector
+      setFrequencyTargetId(itemId);
+      setShowFrequency(true);
+    }
+  };
+
   const openRxDialog = (itemId: number) => {
     const item = cart.find(c => c.id === itemId);
     setRxTargetItemId(itemId);
     setRxDoctorInput(item?.rxDoctorName || "");
     setRxImagePreview(item?.rxImageUrl || null);
     setShowRxDialog(true);
+  };
+
+  const handleFrequencySave = (data: FrequencyData) => {
+    setCart(prev => prev.map(c =>
+      c.id === frequencyTargetId ? { ...c, frequency: data } : c
+    ));
+    toast.success("Frequency set", { description: data.pattern });
   };
 
   const handleRxImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {

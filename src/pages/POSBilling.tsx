@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone, Users,
   ShoppingBag, Pill, ArrowLeft, Keyboard, Clock, User, Pause, Printer, Hash,
-  AlertTriangle, FileText, ChevronRight, X
+  AlertTriangle, FileText, ChevronRight, X, Play, SplitSquareHorizontal, Paperclip, List
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -36,6 +36,28 @@ interface CartItem {
   rxVerified?: boolean;
 }
 
+interface HeldBill {
+  id: string;
+  timestamp: number;
+  customer: Customer | null;
+  customerName: string;
+  cart: CartItem[];
+  prescription?: AttachedPrescription;
+}
+
+interface AttachedPrescription {
+  id: string;
+  doctorName: string;
+  patientName: string;
+  date: string;
+  imageUrl?: string;
+}
+
+interface SplitPayment {
+  method: string;
+  amount: number;
+}
+
 const sampleMedicines = [
   { id: 1, name: "Dolo 650mg", description: "Paracetamol 650mg Tablet", generic: "Paracetamol", mfCode: "ML-DOL", manufacturer: "Micro Labs", batch: "B102", expiry: "08/2026", mrp: 30, cost: 18, stock: 250, gst: 12, taxCat: "GST 12%", requiresRx: false },
   { id: 2, name: "Azithromycin 500mg", description: "Azithromycin 500mg Tablet", generic: "Azithromycin", mfCode: "CP-AZI", manufacturer: "Cipla Ltd", batch: "A45", expiry: "12/2026", mrp: 100, cost: 62, stock: 45, gst: 12, taxCat: "GST 12%", requiresRx: true },
@@ -44,6 +66,12 @@ const sampleMedicines = [
   { id: 5, name: "Amoxicillin 250mg", description: "Amoxicillin Trihydrate 250mg", generic: "Amoxicillin", mfCode: "GS-AMX", manufacturer: "GSK Pharma", batch: "AM33", expiry: "05/2026", mrp: 50, cost: 22, stock: 8, gst: 12, taxCat: "GST 12%", requiresRx: true },
   { id: 6, name: "Metformin 500mg", description: "Metformin HCl 500mg Tablet", generic: "Metformin", mfCode: "US-MET", manufacturer: "USV Ltd", batch: "M90", expiry: "11/2026", mrp: 25, cost: 10, stock: 300, gst: 5, taxCat: "GST 5%", requiresRx: true },
   { id: 7, name: "Crocin Advance", description: "Paracetamol 500mg Tablet", generic: "Paracetamol", mfCode: "GS-CRO", manufacturer: "GSK Pharma", batch: "CR55", expiry: "09/2026", mrp: 28, cost: 15, stock: 150, gst: 12, taxCat: "GST 12%", requiresRx: false },
+];
+
+const samplePrescriptions: AttachedPrescription[] = [
+  { id: "RX001", doctorName: "Dr. Sharma", patientName: "Ravi Kumar", date: "09/03/2026" },
+  { id: "RX002", doctorName: "Dr. Patel", patientName: "Meera Devi", date: "09/03/2026" },
+  { id: "RX003", doctorName: "Dr. Reddy", patientName: "Suresh S", date: "08/03/2026" },
 ];
 
 const paymentMethods = [
@@ -68,7 +96,15 @@ const POSBilling = () => {
   const [invoiceNo, setInvoiceNo] = useState(() => `INV-${Date.now().toString(36).toUpperCase()}`);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
-  const [rxWarningItem, setRxWarningItem] = useState<CartItem | null>(null);
+  
+  // New states
+  const [heldBills, setHeldBills] = useState<HeldBill[]>([]);
+  const [showHeldBills, setShowHeldBills] = useState(false);
+  const [attachedPrescription, setAttachedPrescription] = useState<AttachedPrescription | null>(null);
+  const [showPrescriptionPicker, setShowPrescriptionPicker] = useState(false);
+  const [isSplitPayment, setIsSplitPayment] = useState(false);
+  const [splitPayments, setSplitPayments] = useState<SplitPayment[]>([]);
+  const [showSplitDialog, setShowSplitDialog] = useState(false);
 
   const filtered = search.length > 0
     ? sampleMedicines.filter(m =>
@@ -83,16 +119,18 @@ const POSBilling = () => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "F1") { e.preventDefault(); searchRef.current?.focus(); }
       if (e.key === "F2") { e.preventDefault(); setShowBagSelector(true); }
-      if (e.key === "F5") { e.preventDefault(); setSelectedPayment("Cash"); }
-      if (e.key === "F6") { e.preventDefault(); setSelectedPayment("UPI"); }
-      if (e.key === "F7") { e.preventDefault(); setSelectedPayment("Card"); }
-      if (e.key === "F8") { e.preventDefault(); setSelectedPayment("Credit"); }
+      if (e.key === "F3") { e.preventDefault(); handleHoldBill(); }
+      if (e.key === "F4") { e.preventDefault(); setShowHeldBills(true); }
+      if (e.key === "F5") { e.preventDefault(); setSelectedPayment("Cash"); setIsSplitPayment(false); }
+      if (e.key === "F6") { e.preventDefault(); setSelectedPayment("UPI"); setIsSplitPayment(false); }
+      if (e.key === "F7") { e.preventDefault(); setSelectedPayment("Card"); setIsSplitPayment(false); }
+      if (e.key === "F8") { e.preventDefault(); setSelectedPayment("Credit"); setIsSplitPayment(false); }
       if (e.key === "F9") { e.preventDefault(); handleCompleteSale(); }
       if (e.key === "Escape") { setShowSuggestions(false); setSearch(""); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [cart, selectedPayment]);
+  }, [cart, selectedPayment, isSplitPayment, splitPayments]);
 
   const addToCart = useCallback((med: typeof sampleMedicines[0]) => {
     setCart(prev => {
@@ -156,9 +194,80 @@ const POSBilling = () => {
   const rxItems = cart.filter(c => c.requiresRx);
   const unverifiedRx = rxItems.filter(c => !c.rxVerified);
 
+  // Hold Bill
+  const handleHoldBill = () => {
+    if (cart.length === 0) { toast.error("Add items to hold"); return; }
+    const heldBill: HeldBill = {
+      id: `HLD-${Date.now().toString(36).toUpperCase()}`,
+      timestamp: Date.now(),
+      customer: selectedCustomer,
+      customerName: customerName || "Walk-in",
+      cart: [...cart],
+      prescription: attachedPrescription || undefined,
+    };
+    setHeldBills(prev => [...prev, heldBill]);
+    toast.success(`Bill held: ${heldBill.id}`, { description: `${cart.length} items · ₹${total.toFixed(2)}` });
+    handleClearBill();
+  };
+
+  // Recall Held Bill
+  const handleRecallBill = (bill: HeldBill) => {
+    if (cart.length > 0) {
+      handleHoldBill(); // Auto-hold current bill before recalling
+    }
+    setCart(bill.cart);
+    setSelectedCustomer(bill.customer);
+    setCustomerName(bill.customerName);
+    setAttachedPrescription(bill.prescription || null);
+    setHeldBills(prev => prev.filter(b => b.id !== bill.id));
+    setShowHeldBills(false);
+    toast.success(`Recalled: ${bill.id}`);
+  };
+
+  // Delete Held Bill
+  const handleDeleteHeldBill = (billId: string) => {
+    setHeldBills(prev => prev.filter(b => b.id !== billId));
+    toast.success("Held bill deleted");
+  };
+
+  // Clear Bill
+  const handleClearBill = () => {
+    setCart([]);
+    setSelectedPayment(null);
+    setSelectedCustomer(null);
+    setCustomerName("");
+    setAttachedPrescription(null);
+    setIsSplitPayment(false);
+    setSplitPayments([]);
+    setInvoiceNo(`INV-${Date.now().toString(36).toUpperCase()}`);
+  };
+
+  // Split Payment
+  const splitPaymentTotal = splitPayments.reduce((s, p) => s + p.amount, 0);
+  const splitRemaining = total - splitPaymentTotal;
+
+  const addSplitPayment = (method: string) => {
+    if (splitRemaining <= 0) return;
+    const existing = splitPayments.find(p => p.method === method);
+    if (existing) {
+      setSplitPayments(prev => prev.map(p => p.method === method ? { ...p, amount: p.amount + Math.min(100, splitRemaining) } : p));
+    } else {
+      setSplitPayments(prev => [...prev, { method, amount: Math.min(splitRemaining, total) }]);
+    }
+  };
+
+  const updateSplitAmount = (method: string, amount: number) => {
+    setSplitPayments(prev => prev.map(p => p.method === method ? { ...p, amount: Math.max(0, amount) } : p));
+  };
+
+  const removeSplitPayment = (method: string) => {
+    setSplitPayments(prev => prev.filter(p => p.method !== method));
+  };
+
   const handleCompleteSale = async () => {
     if (cart.length === 0) { toast.error("Add items to cart first"); return; }
-    if (!selectedPayment) { toast.error("Select a payment method"); return; }
+    if (!isSplitPayment && !selectedPayment) { toast.error("Select a payment method"); return; }
+    if (isSplitPayment && Math.abs(splitRemaining) > 0.5) { toast.error(`Split payment incomplete: ₹${splitRemaining.toFixed(2)} remaining`); return; }
     if (unverifiedRx.length > 0) {
       toast.error(`${unverifiedRx.length} medicine(s) require prescription verification`, {
         description: unverifiedRx.map(i => i.name).join(", "),
@@ -168,7 +277,6 @@ const POSBilling = () => {
 
     setIsProcessing(true);
     try {
-      // Simulate processing
       await new Promise(resolve => setTimeout(resolve, 800));
       toast.success("Sale completed successfully!");
       setShowReceipt(true);
@@ -181,11 +289,7 @@ const POSBilling = () => {
   };
 
   const handleNewSale = () => {
-    setCart([]);
-    setSelectedPayment(null);
-    setSelectedCustomer(null);
-    setCustomerName("");
-    setInvoiceNo(`INV-${Date.now().toString(36).toUpperCase()}`);
+    handleClearBill();
     setShowReceipt(false);
     searchRef.current?.focus();
   };
@@ -194,6 +298,21 @@ const POSBilling = () => {
     setSelectedCustomer(customer);
     setCustomerName(customer.name);
     toast.success(`Customer: ${customer.name}`);
+  };
+
+  const handleAttachPrescription = (rx: AttachedPrescription) => {
+    setAttachedPrescription(rx);
+    setShowPrescriptionPicker(false);
+    // Auto-verify all Rx items when prescription is attached
+    setCart(prev => prev.map(c => c.requiresRx ? { ...c, rxVerified: true } : c));
+    toast.success(`Prescription attached: ${rx.id}`, { description: `Dr. ${rx.doctorName} · ${rx.patientName}` });
+  };
+
+  const getPaymentLabel = () => {
+    if (isSplitPayment && splitPayments.length > 0) {
+      return splitPayments.map(p => p.method).join(" + ");
+    }
+    return selectedPayment || "Cash";
   };
 
   return (
@@ -256,6 +375,16 @@ const POSBilling = () => {
           {/* Action buttons */}
           <Tooltip>
             <TooltipTrigger asChild>
+              <button onClick={() => setShowPrescriptionPicker(true)} className={`flex items-center gap-1.5 rounded-lg border px-3 h-10 transition-all ${attachedPrescription ? "border-chart-2 bg-chart-2/5 text-chart-2" : "border-border bg-card hover:bg-accent hover:border-primary/40"}`}>
+                <Paperclip className="h-4 w-4" />
+                <span className="text-xs font-medium hidden sm:inline">{attachedPrescription ? "Rx" : "Attach Rx"}</span>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{attachedPrescription ? `Attached: ${attachedPrescription.id}` : "Attach prescription"}</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
               <button onClick={() => setShowBagSelector(true)} className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 h-10 hover:bg-accent hover:border-primary/40 transition-all">
                 <ShoppingBag className="h-4 w-4 text-primary" />
                 <span className="text-xs font-medium hidden sm:inline">Bag</span>
@@ -267,12 +396,29 @@ const POSBilling = () => {
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <button className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 h-10 hover:bg-accent transition-all">
-                <Pause className="h-4 w-4 text-muted-foreground" />
+              <button onClick={handleHoldBill} className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 h-10 hover:bg-accent hover:border-warning/40 transition-all">
+                <Pause className="h-4 w-4 text-warning" />
                 <span className="text-xs font-medium hidden sm:inline">Hold</span>
+                <kbd className="hidden lg:inline text-[9px] bg-secondary rounded px-1 py-0.5 text-muted-foreground ml-1">F3</kbd>
               </button>
             </TooltipTrigger>
-            <TooltipContent>Hold current bill</TooltipContent>
+            <TooltipContent>Hold current bill (F3)</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button onClick={() => setShowHeldBills(true)} className="relative flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 h-10 hover:bg-accent hover:border-primary/40 transition-all">
+                <List className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs font-medium hidden sm:inline">Recall</span>
+                {heldBills.length > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-warning text-[9px] font-bold text-warning-foreground">
+                    {heldBills.length}
+                  </span>
+                )}
+                <kbd className="hidden lg:inline text-[9px] bg-secondary rounded px-1 py-0.5 text-muted-foreground ml-1">F4</kbd>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Recall held bills (F4)</TooltipContent>
           </Tooltip>
 
           <div className="hidden xl:flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -281,13 +427,27 @@ const POSBilling = () => {
           </div>
         </header>
 
-        {/* Prescription Warning Banner */}
-        {unverifiedRx.length > 0 && (
+        {/* Prescription & Warning Banners */}
+        {attachedPrescription && (
+          <div className="flex items-center gap-3 bg-chart-2/5 border-b border-chart-2/20 px-4 py-2">
+            <FileText className="h-4 w-4 text-chart-2 shrink-0" />
+            <p className="text-xs text-chart-2 font-medium flex-1">
+              Prescription: {attachedPrescription.id} · Dr. {attachedPrescription.doctorName} · Patient: {attachedPrescription.patientName}
+            </p>
+            <button onClick={() => setAttachedPrescription(null)} className="p-1 rounded hover:bg-chart-2/10">
+              <X className="h-3 w-3 text-chart-2" />
+            </button>
+          </div>
+        )}
+        {unverifiedRx.length > 0 && !attachedPrescription && (
           <div className="flex items-center gap-3 bg-destructive/5 border-b border-destructive/20 px-4 py-2">
             <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
             <p className="text-xs text-destructive font-medium flex-1">
               {unverifiedRx.length} item(s) require prescription verification: {unverifiedRx.map(i => i.name).join(", ")}
             </p>
+            <button onClick={() => setShowPrescriptionPicker(true)} className="text-xs font-semibold text-primary hover:underline">
+              Attach Rx
+            </button>
           </div>
         )}
 
@@ -425,9 +585,14 @@ const POSBilling = () => {
                 <strong>{rxItems.length - unverifiedRx.length}/{rxItems.length}</strong> Rx verified
               </span>
             )}
+            {heldBills.length > 0 && (
+              <span className="text-warning">
+                <strong>{heldBills.length}</strong> held
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-3 text-muted-foreground">
-            <span className="hidden md:flex items-center gap-1"><Keyboard className="h-3 w-3" /> F1 Search · F2 Bag · F5-F8 Pay · F9 Complete · Esc Clear</span>
+            <span className="hidden md:flex items-center gap-1"><Keyboard className="h-3 w-3" /> F1 Search · F3 Hold · F4 Recall · F9 Complete</span>
           </div>
         </div>
       </div>
@@ -465,7 +630,7 @@ const POSBilling = () => {
         </div>
 
         {/* Bill Summary */}
-        <div className="p-4 border-b border-border space-y-3 flex-1">
+        <div className="p-4 border-b border-border space-y-3 flex-1 overflow-y-auto">
           <h3 className="text-xs font-semibold text-foreground flex items-center gap-2">
             <Hash className="h-3.5 w-3.5 text-muted-foreground" />
             Bill Summary
@@ -493,7 +658,6 @@ const POSBilling = () => {
             </div>
           </div>
 
-          {/* Savings callout */}
           {totalDiscount > 0 && (
             <div className="bg-chart-2/5 border border-chart-2/20 rounded-lg px-3 py-2 text-center">
               <p className="text-[11px] text-chart-2 font-semibold">You save ₹{totalDiscount.toFixed(2)} 🎉</p>
@@ -503,31 +667,86 @@ const POSBilling = () => {
 
         {/* Payment Methods */}
         <div className="p-4 border-b border-border">
-          <h3 className="text-xs font-semibold text-foreground mb-3">Payment Method</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {paymentMethods.map(m => (
-              <button
-                key={m.label}
-                onClick={() => setSelectedPayment(m.label)}
-                className={`flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 text-sm transition-all active:scale-95
-                  ${selectedPayment === m.label
-                    ? "border-primary bg-primary/5 shadow-sm"
-                    : "border-border hover:bg-accent hover:border-primary/30"
-                  }`}
-              >
-                <m.icon className={`h-5 w-5 ${selectedPayment === m.label ? "text-primary" : m.color}`} />
-                <span className="text-xs font-semibold">{m.label}</span>
-                <kbd className="text-[9px] bg-secondary rounded px-1.5 py-0.5 text-muted-foreground">{m.shortcut}</kbd>
-              </button>
-            ))}
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-xs font-semibold text-foreground">Payment Method</h3>
+            <button
+              onClick={() => { setIsSplitPayment(!isSplitPayment); setSplitPayments([]); setSelectedPayment(null); }}
+              className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-md transition-colors ${isSplitPayment ? "bg-primary/10 text-primary" : "hover:bg-secondary text-muted-foreground"}`}
+            >
+              <SplitSquareHorizontal className="h-3 w-3" />
+              Split
+            </button>
           </div>
+
+          {!isSplitPayment ? (
+            <div className="grid grid-cols-2 gap-2">
+              {paymentMethods.map(m => (
+                <button
+                  key={m.label}
+                  onClick={() => setSelectedPayment(m.label)}
+                  className={`flex flex-col items-center gap-1.5 rounded-xl border-2 p-3 text-sm transition-all active:scale-95
+                    ${selectedPayment === m.label
+                      ? "border-primary bg-primary/5 shadow-sm"
+                      : "border-border hover:bg-accent hover:border-primary/30"
+                    }`}
+                >
+                  <m.icon className={`h-5 w-5 ${selectedPayment === m.label ? "text-primary" : m.color}`} />
+                  <span className="text-xs font-semibold">{m.label}</span>
+                  <kbd className="text-[9px] bg-secondary rounded px-1.5 py-0.5 text-muted-foreground">{m.shortcut}</kbd>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {/* Split Payment Methods */}
+              <div className="grid grid-cols-4 gap-1.5">
+                {paymentMethods.map(m => (
+                  <button
+                    key={m.label}
+                    onClick={() => addSplitPayment(m.label)}
+                    className="flex flex-col items-center gap-1 rounded-lg border border-border p-2 text-xs hover:bg-accent hover:border-primary/30 transition-all"
+                  >
+                    <m.icon className={`h-4 w-4 ${m.color}`} />
+                    <span className="text-[10px] font-medium">{m.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Split Amounts */}
+              {splitPayments.length > 0 && (
+                <div className="space-y-1.5 pt-2">
+                  {splitPayments.map(p => (
+                    <div key={p.method} className="flex items-center gap-2 bg-accent/50 rounded-lg px-3 py-2">
+                      <span className="text-xs font-medium flex-1">{p.method}</span>
+                      <span className="text-muted-foreground text-xs">₹</span>
+                      <input
+                        type="number"
+                        value={p.amount}
+                        onChange={e => updateSplitAmount(p.method, parseFloat(e.target.value) || 0)}
+                        className="w-20 rounded border border-border bg-background px-2 py-1 text-xs text-right tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
+                      />
+                      <button onClick={() => removeSplitPayment(p.method)} className="p-1 rounded hover:bg-destructive/10">
+                        <X className="h-3 w-3 text-destructive" />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="flex justify-between text-xs pt-1 border-t border-border">
+                    <span className="text-muted-foreground">Remaining</span>
+                    <span className={`font-bold tabular-nums ${Math.abs(splitRemaining) < 0.5 ? "text-chart-2" : "text-destructive"}`}>
+                      ₹{splitRemaining.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Actions */}
         <div className="p-4 space-y-2">
           <button
             onClick={handleCompleteSale}
-            disabled={cart.length === 0 || !selectedPayment || isProcessing}
+            disabled={cart.length === 0 || (!isSplitPayment && !selectedPayment) || (isSplitPayment && Math.abs(splitRemaining) > 0.5) || isProcessing}
             className="w-full rounded-xl bg-primary py-3.5 text-sm font-bold text-primary-foreground shadow-lg hover:opacity-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98] flex items-center justify-center gap-2"
           >
             {isProcessing ? (
@@ -539,10 +758,13 @@ const POSBilling = () => {
             {!isProcessing && <kbd className="text-[9px] bg-primary-foreground/20 rounded px-1.5 py-0.5 ml-1">F9</kbd>}
           </button>
           <button
+            onClick={handleHoldBill}
             disabled={cart.length === 0}
-            className="w-full rounded-xl border border-border py-2.5 text-xs font-medium text-muted-foreground hover:bg-secondary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            className="w-full rounded-xl border border-warning/40 bg-warning/5 py-2.5 text-xs font-medium text-warning hover:bg-warning/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Save as Draft
+            <Pause className="h-3.5 w-3.5" />
+            Hold Bill
+            <kbd className="text-[9px] bg-warning/20 rounded px-1.5 py-0.5">F3</kbd>
           </button>
         </div>
       </div>
@@ -573,18 +795,112 @@ const POSBilling = () => {
       {/* Customer Selector */}
       <CustomerSelector open={showCustomerSelector} onOpenChange={setShowCustomerSelector} onSelect={handleCustomerSelect} />
 
+      {/* Prescription Picker Dialog */}
+      <Dialog open={showPrescriptionPicker} onOpenChange={setShowPrescriptionPicker}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Paperclip className="h-5 w-5 text-primary" />
+              Attach Prescription
+            </DialogTitle>
+            <DialogDescription>Select a prescription to attach to this bill</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-72 overflow-y-auto">
+            {samplePrescriptions.map(rx => (
+              <button
+                key={rx.id}
+                onClick={() => handleAttachPrescription(rx)}
+                className="w-full flex items-center gap-3 rounded-xl border border-border p-3 text-left hover:bg-accent hover:border-primary/30 transition-all"
+              >
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <FileText className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground">{rx.id}</p>
+                  <p className="text-[11px] text-muted-foreground">Dr. {rx.doctorName} · {rx.patientName}</p>
+                  <p className="text-[10px] text-muted-foreground">{rx.date}</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Held Bills Dialog */}
+      <Dialog open={showHeldBills} onOpenChange={setShowHeldBills}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pause className="h-5 w-5 text-warning" />
+              Held Bills
+            </DialogTitle>
+            <DialogDescription>
+              {heldBills.length > 0 ? `${heldBills.length} bill(s) on hold` : "No bills on hold"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 max-h-80 overflow-y-auto">
+            {heldBills.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Pause className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">No held bills</p>
+              </div>
+            ) : (
+              heldBills.map(bill => (
+                <div key={bill.id} className="flex items-center gap-3 rounded-xl border border-border p-3 hover:bg-accent/30 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">{bill.id}</p>
+                      {bill.prescription && (
+                        <Badge variant="outline" className="text-[9px] h-4 px-1 border-chart-2/40 text-chart-2">Rx</Badge>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">{bill.customerName} · {bill.cart.length} items</p>
+                    <p className="text-xs font-semibold text-primary tabular-nums">
+                      ₹{bill.cart.reduce((s, c) => s + (c.mrp * c.qty * (1 - c.discPct / 100)), 0).toFixed(2)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {new Date(bill.timestamp).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleRecallBill(bill)}
+                      className="flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:opacity-90 transition-all"
+                    >
+                      <Play className="h-3 w-3" />
+                      Recall
+                    </button>
+                    <button
+                      onClick={() => handleDeleteHeldBill(bill.id)}
+                      className="rounded-lg p-2 hover:bg-destructive/10 transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Sale Receipt */}
       <SaleReceiptDialog
         open={showReceipt}
         onOpenChange={setShowReceipt}
         invoiceNo={invoiceNo}
         customerName={customerName}
-        items={cart.map(c => ({ sno: c.sno, name: c.name, batch: c.batch, qty: c.qty, mrp: c.mrp, discPct: c.discPct, total: getItemTotal(c), dosageLabel: c.dosageLabel }))}
+        items={cart.map(c => ({ 
+          sno: c.sno, name: c.name, batch: c.batch, qty: c.qty, mrp: c.mrp, discPct: c.discPct, 
+          total: getItemTotal(c), dosageLabel: c.dosageLabel, manufacturer: c.manufacturer, 
+          expiry: c.expiry, gst: c.gst 
+        }))}
         subtotal={subtotal}
         discount={totalDiscount}
         gst={totalGst}
         total={total}
-        paymentMethod={selectedPayment || "Cash"}
+        paymentMethod={getPaymentLabel()}
         onNewSale={handleNewSale}
       />
     </div>

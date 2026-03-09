@@ -518,6 +518,16 @@ const PurchasesPage = () => {
 
               {/* Actions */}
               <div className="space-y-2 pt-2 border-t border-border">
+                {/* Receive Stock - for ordered/delivered POs */}
+                {(selected.status === "ordered" || selected.status === "delivered") && (
+                  <Button
+                    size="sm"
+                    className="w-full gap-2 bg-chart-2 hover:bg-chart-2/90 text-white"
+                    onClick={() => openReceiveStock(selected)}
+                  >
+                    <PackageCheck className="h-4 w-4" /> Receive Stock & Add to Inventory
+                  </Button>
+                )}
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => handleDownloadExistingPO(selected)}>
                     <Download className="h-3.5 w-3.5" /> Download PDF

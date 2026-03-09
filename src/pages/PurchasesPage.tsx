@@ -37,8 +37,6 @@ interface ReceiveItem {
 }
 
 interface PurchaseOrder {
-
-interface PurchaseOrder {
   id: string;
   supplier: string;
   supplierWhatsapp?: string;

@@ -8,6 +8,7 @@ import {
   IndianRupee, ShoppingCart, Package, Filter, AlertTriangle,
   Clock, Zap, ArrowUpRight, Eye
 } from "lucide-react";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { InsightCard } from "@/components/reports/InsightCard";
 import { AIReorderPanel } from "@/components/reports/AIReorderPanel";
 
@@ -85,10 +86,7 @@ const ReportsPage = () => {
           <p className="text-sm text-muted-foreground">Actionable insights to grow your pharmacy</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span>01 Mar – 07 Mar 2026</span>
-          </div>
+          <DateRangeFilter />
           <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity">
             <Download className="h-4 w-4" /> Export
           </button>

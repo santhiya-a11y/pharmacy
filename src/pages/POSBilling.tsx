@@ -408,9 +408,9 @@ const POSBilling = () => {
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <button onClick={handleHoldBill} className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 h-10 hover:bg-accent hover:border-warning/40 transition-all">
+              <button onClick={() => heldBills.length > 0 ? setShowHeldBills(true) : handleHoldBill()} className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 h-10 hover:bg-accent hover:border-warning/40 transition-all">
                 <Pause className="h-4 w-4 text-warning" />
-                <span className="text-xs font-medium hidden sm:inline">Hold</span>
+                <span className="text-xs font-medium hidden sm:inline">{heldBills.length > 0 ? "Recall" : "Hold"}</span>
                 {heldBills.length > 0 && (
                   <span className="flex h-4 w-4 items-center justify-center rounded-full bg-warning text-[9px] font-bold text-warning-foreground">
                     {heldBills.length}
@@ -419,7 +419,7 @@ const POSBilling = () => {
                 <kbd className="hidden lg:inline text-[9px] bg-secondary rounded px-1 py-0.5 text-muted-foreground ml-1">F3</kbd>
               </button>
             </TooltipTrigger>
-            <TooltipContent>Hold current bill (F3) · Click badge to recall</TooltipContent>
+            <TooltipContent>{heldBills.length > 0 ? `View ${heldBills.length} held bill(s) (F3)` : "Hold current bill (F3)"}</TooltipContent>
           </Tooltip>
 
           <div className="hidden xl:flex items-center gap-1.5 text-xs text-muted-foreground">

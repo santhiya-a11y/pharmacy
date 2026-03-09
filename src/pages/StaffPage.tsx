@@ -142,7 +142,7 @@ const StaffPage = () => {
           {/* Staff Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filtered.map(member => (
-              <div key={member.id} className="rounded-xl border border-border bg-card p-5 hover:shadow-md transition-shadow group">
+              <div key={member.id} className="rounded-xl border border-border bg-card p-5 hover:shadow-md transition-shadow group cursor-pointer" onClick={() => setSelectedStaff(member)}>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold ${

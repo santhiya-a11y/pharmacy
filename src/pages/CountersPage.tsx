@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
-  Plus, Monitor, User, Clock, Power, PowerOff, Coffee,
-  Trash2, Edit2, Check, X, ChevronRight
+  Plus, Monitor, Clock, Power, PowerOff, Coffee,
+  Trash2, LogIn, LogOut as LogOutIcon, X
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,10 +11,8 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from "@/components/ui/select";
 import { toast } from "sonner";
+import { useRole } from "@/contexts/RoleContext";
 
 type CounterStatus = "open" | "closed" | "break";
 
@@ -29,14 +27,6 @@ interface Counter {
   todaySales: number;
   todayTransactions: number;
 }
-
-const availableEmployees = [
-  { id: "EMP-001", name: "Priya Sharma", role: "Pharmacist" },
-  { id: "EMP-002", name: "Rahul Kumar", role: "Sales Associate" },
-  { id: "EMP-003", name: "Anita Desai", role: "Pharmacist" },
-  { id: "EMP-004", name: "Vikram Singh", role: "Cashier" },
-  { id: "EMP-005", name: "Meera Patel", role: "Sales Associate" },
-];
 
 const initialCounters: Counter[] = [
   {
@@ -72,25 +62,18 @@ const statusConfig: Record<CounterStatus, { label: string; color: string; icon: 
 };
 
 const CountersPage = () => {
+  const { currentUser } = useRole();
   const [counters, setCounters] = useState<Counter[]>(initialCounters);
   const [createOpen, setCreateOpen] = useState(false);
-  const [assignOpen, setAssignOpen] = useState(false);
-  const [selectedCounter, setSelectedCounter] = useState<Counter | null>(null);
   const [newName, setNewName] = useState("");
   const [newLocation, setNewLocation] = useState("");
-  const [selectedEmployee, setSelectedEmployee] = useState("");
 
   const openCount = counters.filter(c => c.status === "open").length;
   const breakCount = counters.filter(c => c.status === "break").length;
   const totalSales = counters.reduce((s, c) => s + c.todaySales, 0);
 
-  const assignedEmpIds = counters
-    .filter(c => c.employeeId)
-    .map(c => c.employeeId);
-
-  const unassignedEmployees = availableEmployees.filter(
-    e => !assignedEmpIds.includes(e.id)
-  );
+  // Check if current user is already logged into a counter
+  const myCounter = counters.find(c => c.employeeId === currentUser.employeeId);
 
   const handleCreate = () => {
     if (!newName.trim()) return;
@@ -105,26 +88,35 @@ const CountersPage = () => {
     toast.success(`${newName.trim()} created`);
   };
 
-  const handleAssign = () => {
-    if (!selectedCounter || !selectedEmployee) return;
-    const emp = availableEmployees.find(e => e.id === selectedEmployee);
-    if (!emp) return;
+  // Auto-login: current user logs into a counter
+  const handleLogin = (counter: Counter) => {
+    if (myCounter) {
+      toast.error(`You're already logged into ${myCounter.name}. Log out first.`);
+      return;
+    }
+    const now = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
     setCounters(prev => prev.map(c =>
-      c.id === selectedCounter.id
-        ? { ...c, assignedEmployee: emp.name, employeeId: emp.id }
+      c.id === counter.id
+        ? {
+            ...c,
+            assignedEmployee: currentUser.name,
+            employeeId: currentUser.employeeId,
+            status: "open",
+            openedAt: now
+          }
         : c
     ));
-    setAssignOpen(false); setSelectedEmployee("");
-    toast.success(`${emp.name} assigned to ${selectedCounter.name}`);
+    toast.success(`You're now logged into ${counter.name}`);
   };
 
-  const handleUnassign = (counter: Counter) => {
+  // Logout from counter
+  const handleLogout = (counter: Counter) => {
     setCounters(prev => prev.map(c =>
       c.id === counter.id
         ? { ...c, assignedEmployee: null, employeeId: null, status: "closed", openedAt: null }
         : c
     ));
-    toast.info(`${counter.assignedEmployee} removed from ${counter.name}`);
+    toast.info(`Logged out from ${counter.name}`);
   };
 
   const toggleStatus = (counter: Counter, newStatus: CounterStatus) => {
@@ -134,7 +126,9 @@ const CountersPage = () => {
         ? {
             ...c,
             status: newStatus,
-            openedAt: newStatus === "open" ? now : newStatus === "closed" ? null : c.openedAt
+            openedAt: newStatus === "open" ? now : newStatus === "closed" ? null : c.openedAt,
+            // If closing, also log out the employee
+            ...(newStatus === "closed" ? { assignedEmployee: null, employeeId: null } : {})
           }
         : c
     ));
@@ -142,9 +136,15 @@ const CountersPage = () => {
   };
 
   const handleDelete = (counter: Counter) => {
+    if (counter.status === "open") {
+      toast.error("Close the counter before deleting");
+      return;
+    }
     setCounters(prev => prev.filter(c => c.id !== counter.id));
     toast.success(`${counter.name} deleted`);
   };
+
+  const isMe = (counter: Counter) => counter.employeeId === currentUser.employeeId;
 
   return (
     <div className="space-y-6">
@@ -153,13 +153,31 @@ const CountersPage = () => {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Counter Management</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Manage billing counters and employee assignments
+            Login to a counter to start billing · Logged in as <span className="font-medium text-foreground">{currentUser.name}</span>
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" /> New Counter
         </Button>
       </div>
+
+      {/* My Counter Banner */}
+      {myCounter && (
+        <div className="flex items-center gap-3 rounded-xl border border-chart-2/30 bg-chart-2/5 px-4 py-3">
+          <div className="h-9 w-9 rounded-lg bg-chart-2/15 flex items-center justify-center">
+            <Monitor className="h-5 w-5 text-chart-2" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">
+              You're active on <span className="text-chart-2">{myCounter.name}</span>
+            </p>
+            <p className="text-xs text-muted-foreground">{myCounter.location} · Since {myCounter.openedAt}</p>
+          </div>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => handleLogout(myCounter)}>
+            <LogOutIcon className="h-3.5 w-3.5" /> Log Out
+          </Button>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -214,8 +232,9 @@ const CountersPage = () => {
         {counters.map(counter => {
           const cfg = statusConfig[counter.status];
           const StatusIcon = cfg.icon;
+          const isMine = isMe(counter);
           return (
-            <Card key={counter.id} className="relative overflow-hidden">
+            <Card key={counter.id} className={`relative overflow-hidden ${isMine ? "ring-2 ring-chart-2/40" : ""}`}>
               {/* Status indicator strip */}
               <div className={`absolute top-0 left-0 right-0 h-1 ${
                 counter.status === "open" ? "bg-chart-2" :
@@ -229,7 +248,10 @@ const CountersPage = () => {
                       <Monitor className="h-5 w-5 text-foreground" />
                     </div>
                     <div>
-                      <CardTitle className="text-base">{counter.name}</CardTitle>
+                      <CardTitle className="text-base">
+                        {counter.name}
+                        {isMine && <span className="text-xs font-normal text-chart-2 ml-2">(You)</span>}
+                      </CardTitle>
                       <p className="text-xs text-muted-foreground">{counter.location || "No location set"}</p>
                     </div>
                   </div>
@@ -241,32 +263,24 @@ const CountersPage = () => {
               </CardHeader>
 
               <CardContent className="space-y-4">
-                {/* Employee Assignment */}
+                {/* Logged-in Employee */}
                 {counter.assignedEmployee ? (
-                  <div className="flex items-center justify-between bg-secondary/50 rounded-lg p-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
-                        {counter.assignedEmployee.split(" ").map(n => n[0]).join("")}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-foreground">{counter.assignedEmployee}</p>
-                        <p className="text-[11px] text-muted-foreground">{counter.employeeId}</p>
-                      </div>
+                  <div className="flex items-center gap-2.5 bg-secondary/50 rounded-lg p-3">
+                    <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
+                      {counter.assignedEmployee.split(" ").map(n => n[0]).join("")}
                     </div>
-                    <Button
-                      variant="ghost" size="icon" className="h-7 w-7"
-                      onClick={() => handleUnassign(counter)}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{counter.assignedEmployee}</p>
+                      <p className="text-[11px] text-muted-foreground">{counter.employeeId} · Logged in</p>
+                    </div>
+                    {isMine && (
+                      <Badge className="bg-chart-2/15 text-chart-2 border-chart-2/30 text-[9px]">You</Badge>
+                    )}
                   </div>
                 ) : (
-                  <button
-                    onClick={() => { setSelectedCounter(counter); setAssignOpen(true); }}
-                    className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg p-3 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors"
-                  >
-                    <User className="h-4 w-4" /> Assign Employee
-                  </button>
+                  <div className="flex items-center justify-center gap-2 border-2 border-dashed border-border rounded-lg p-3 text-sm text-muted-foreground">
+                    <Monitor className="h-4 w-4" /> No one logged in
+                  </div>
                 )}
 
                 {/* Stats row */}
@@ -274,7 +288,7 @@ const CountersPage = () => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5 text-muted-foreground">
                       <Clock className="h-3.5 w-3.5" />
-                      Opened {counter.openedAt}
+                      Since {counter.openedAt}
                     </div>
                     <div className="flex gap-3">
                       <span className="font-medium text-foreground">₹{counter.todaySales.toLocaleString("en-IN")}</span>
@@ -285,32 +299,50 @@ const CountersPage = () => {
 
                 {/* Action buttons */}
                 <div className="flex gap-2">
-                  {counter.status === "closed" && counter.assignedEmployee && (
-                    <Button size="sm" className="flex-1 gap-1.5" onClick={() => toggleStatus(counter, "open")}>
-                      <Power className="h-3.5 w-3.5" /> Open Counter
+                  {/* Available counter - Login */}
+                  {counter.status === "closed" && !counter.assignedEmployee && (
+                    <Button
+                      size="sm" className="flex-1 gap-1.5"
+                      onClick={() => handleLogin(counter)}
+                      disabled={!!myCounter}
+                    >
+                      <LogIn className="h-3.5 w-3.5" /> Login to Counter
                     </Button>
                   )}
-                  {counter.status === "open" && (
+
+                  {/* My counter actions */}
+                  {isMine && counter.status === "open" && (
                     <>
                       <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => toggleStatus(counter, "break")}>
                         <Coffee className="h-3.5 w-3.5" /> Break
                       </Button>
-                      <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => toggleStatus(counter, "closed")}>
-                        <PowerOff className="h-3.5 w-3.5" /> Close
+                      <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => handleLogout(counter)}>
+                        <LogOutIcon className="h-3.5 w-3.5" /> Log Out
                       </Button>
                     </>
                   )}
-                  {counter.status === "break" && (
+                  {isMine && counter.status === "break" && (
                     <Button size="sm" className="flex-1 gap-1.5" onClick={() => toggleStatus(counter, "open")}>
                       <Power className="h-3.5 w-3.5" /> Resume
                     </Button>
                   )}
-                  <Button
-                    size="sm" variant="ghost" className="text-destructive hover:text-destructive"
-                    onClick={() => handleDelete(counter)}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+
+                  {/* Other person's counter - admin can force close */}
+                  {counter.assignedEmployee && !isMine && counter.status !== "closed" && (
+                    <Button size="sm" variant="outline" className="flex-1 gap-1.5 text-destructive" onClick={() => toggleStatus(counter, "closed")}>
+                      <PowerOff className="h-3.5 w-3.5" /> Force Close
+                    </Button>
+                  )}
+
+                  {/* Delete - only when closed */}
+                  {counter.status === "closed" && (
+                    <Button
+                      size="sm" variant="ghost" className="text-destructive hover:text-destructive"
+                      onClick={() => handleDelete(counter)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -346,52 +378,6 @@ const CountersPage = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
             <Button onClick={handleCreate} disabled={!newName.trim()}>Create Counter</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Assign Employee Dialog */}
-      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Assign Employee</DialogTitle>
-            <DialogDescription>
-              Assign an employee to {selectedCounter?.name}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            {unassignedEmployees.length > 0 ? (
-              unassignedEmployees.map(emp => (
-                <button
-                  key={emp.id}
-                  onClick={() => setSelectedEmployee(emp.id)}
-                  className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors ${
-                    selectedEmployee === emp.id
-                      ? "border-primary bg-primary/5"
-                      : "border-border hover:bg-secondary"
-                  }`}
-                >
-                  <div className="h-9 w-9 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
-                    {emp.name.split(" ").map(n => n[0]).join("")}
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-foreground">{emp.name}</p>
-                    <p className="text-xs text-muted-foreground">{emp.id} · {emp.role}</p>
-                  </div>
-                  {selectedEmployee === emp.id && (
-                    <Check className="h-4 w-4 text-primary ml-auto" />
-                  )}
-                </button>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                All employees are already assigned to counters
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAssignOpen(false)}>Cancel</Button>
-            <Button onClick={handleAssign} disabled={!selectedEmployee}>Assign</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

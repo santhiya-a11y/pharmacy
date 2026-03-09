@@ -47,6 +47,7 @@ const StaffPage = () => {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<"staff" | "attendance">("staff");
   const [newStaff, setNewStaff] = useState({ name: "", role: "", phone: "", email: "", shift: "" });
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
 
   const filtered = staffData.filter(s => {
     const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) || s.role.toLowerCase().includes(search.toLowerCase());

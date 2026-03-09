@@ -95,6 +95,7 @@ const POSBilling = () => {
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [invoiceNo] = useState(() => `INV-${Date.now().toString(36).toUpperCase()}`);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);

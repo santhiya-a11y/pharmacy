@@ -69,6 +69,24 @@ const initialOrders: PurchaseOrder[] = [
 const suppliers = ["MedPharma Distributors", "HealthCare Supplies", "Generic Meds Ltd.", "Micro Labs", "Cipla Ltd", "Dr. Reddy's", "GSK Pharma", "Sun Pharma", "USV Ltd", "Mankind Pharma"];
 const paymentTermOptions = ["Advance", "COD", "7 Days", "15 Days", "30 Days", "45 Days", "60 Days"];
 
+// Inventory data with supplier mapping for expiry suggestions
+interface InventoryRef {
+  name: string; batch: string; expiry: string; stock: number; purchasePrice: number; supplier: string; status: string;
+}
+const inventoryData: InventoryRef[] = [
+  { name: "Dolo 650mg", batch: "B102", expiry: "08/2026", stock: 250, purchasePrice: 22, supplier: "Micro Labs", status: "safe" },
+  { name: "Azithromycin 500mg", batch: "A45", expiry: "12/2026", stock: 45, purchasePrice: 68, supplier: "Cipla Ltd", status: "safe" },
+  { name: "Cetirizine 10mg", batch: "C78", expiry: "04/2026", stock: 180, purchasePrice: 18, supplier: "Dr. Reddy's", status: "expiring" },
+  { name: "Amoxicillin 250mg", batch: "AM33", expiry: "05/2026", stock: 8, purchasePrice: 32, supplier: "GSK Pharma", status: "low" },
+  { name: "Metformin 500mg", batch: "M90", expiry: "11/2026", stock: 300, purchasePrice: 15, supplier: "USV Ltd", status: "safe" },
+  { name: "Pantoprazole 40mg", batch: "P12", expiry: "06/2026", stock: 92, purchasePrice: 38, supplier: "Sun Pharma", status: "expiring" },
+  { name: "Paracetamol 500mg", batch: "P201", expiry: "05/2026", stock: 120, purchasePrice: 1.2, supplier: "MedPharma Distributors", status: "expiring" },
+  { name: "Omeprazole 20mg", batch: "O55", expiry: "04/2026", stock: 60, purchasePrice: 12, supplier: "MedPharma Distributors", status: "expiring" },
+  { name: "Insulin Glargine", batch: "IG10", expiry: "06/2026", stock: 10, purchasePrice: 450, supplier: "HealthCare Supplies", status: "expiring" },
+  { name: "Atorvastatin 10mg", batch: "AT22", expiry: "05/2026", stock: 200, purchasePrice: 2.1, supplier: "Generic Meds Ltd.", status: "expiring" },
+  { name: "Losartan 50mg", batch: "L44", expiry: "07/2026", stock: 75, purchasePrice: 8, supplier: "Generic Meds Ltd.", status: "expiring" },
+];
+
 const statusConfig = {
   draft: { label: "Draft", color: "bg-muted text-muted-foreground" },
   ordered: { label: "Ordered", color: "bg-primary/10 text-primary" },

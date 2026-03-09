@@ -184,6 +184,39 @@ const PurchasesPage = () => {
     setShowPaymentDialog(false);
   };
 
+  const openReceiveStock = (order: PurchaseOrder) => {
+    setReceiveTarget(order);
+    setReceiveItems(order.items.map(item => ({
+      drug: item.drug,
+      orderedQty: item.qty,
+      receivedQty: item.qty,
+      batch: "",
+      expiry: "",
+      mrp: item.rate * 1.3, // default MRP ~30% markup
+      rackLocation: "",
+    })));
+    setShowReceiveStock(true);
+    setSelected(null);
+  };
+
+  const updateReceiveItem = (index: number, field: keyof ReceiveItem, value: string | number) => {
+    setReceiveItems(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+  };
+
+  const handleReceiveStock = () => {
+    const validItems = receiveItems.filter(i => i.receivedQty > 0 && i.batch.trim());
+    if (validItems.length === 0) {
+      toast.error("Please enter batch number for at least one item");
+      return;
+    }
+    const totalReceived = validItems.reduce((s, i) => s + i.receivedQty, 0);
+    toast.success(`${totalReceived} units from ${receiveTarget?.id} added to inventory`, {
+      description: `${validItems.length} items received from ${receiveTarget?.supplier}`,
+    });
+    setShowReceiveStock(false);
+    setReceiveTarget(null);
+  };
+
   const sendOrderToSupplier = (order: PurchaseOrder) => {
     const msg = `Purchase Order: ${order.id}\n\nItems:\n${order.items.map((i, idx) => `${idx + 1}. ${i.drug} - Qty: ${i.qty} @ ₹${i.rate}`).join("\n")}\n\nTotal: ₹${order.totalAmount}\n\nPlease confirm.`;
     if (order.supplierWhatsapp) {

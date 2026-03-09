@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import AdminAttendanceView from "@/components/staff/AdminAttendanceView";
+import StaffDetailPanel from "@/components/staff/StaffDetailPanel";
 
 interface StaffMember {
   id: string;
@@ -46,6 +47,7 @@ const StaffPage = () => {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<"staff" | "attendance">("staff");
   const [newStaff, setNewStaff] = useState({ name: "", role: "", phone: "", email: "", shift: "" });
+  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
 
   const filtered = staffData.filter(s => {
     const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) || s.role.toLowerCase().includes(search.toLowerCase());
@@ -140,7 +142,7 @@ const StaffPage = () => {
           {/* Staff Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filtered.map(member => (
-              <div key={member.id} className="rounded-xl border border-border bg-card p-5 hover:shadow-md transition-shadow group">
+              <div key={member.id} className="rounded-xl border border-border bg-card p-5 hover:shadow-md transition-shadow group cursor-pointer" onClick={() => setSelectedStaff(member)}>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className={`flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold ${
@@ -192,6 +194,9 @@ const StaffPage = () => {
           </div>
         </>
       )}
+
+      {/* Staff Detail Panel */}
+      {selectedStaff && <StaffDetailPanel member={selectedStaff} onClose={() => setSelectedStaff(null)} />}
 
       {/* Add Staff Dialog */}
       {showAddDialog && (

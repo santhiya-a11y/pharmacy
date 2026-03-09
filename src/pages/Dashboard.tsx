@@ -1,7 +1,6 @@
 import { InventoryHealthBar } from "@/components/dashboard/InventoryHealthBar";
 import { CriticalAlerts } from "@/components/dashboard/CriticalAlerts";
 import { QuickActions } from "@/components/dashboard/QuickActions";
-import { ReorderSuggestions } from "@/components/dashboard/ReorderSuggestions";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
 import { TopSellingTable } from "@/components/dashboard/TopSellingTable";
@@ -20,22 +19,16 @@ const Dashboard = () => {
       {/* Header + Quick Actions */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Good Morning, Admin</h1>
+          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
           <p className="text-sm text-muted-foreground">{today}</p>
         </div>
         <QuickActions />
       </div>
 
-      {/* 1. Inventory Health — above the fold */}
+      {/* Primary: Inventory Health — immediate operational awareness */}
       <InventoryHealthBar />
 
-      {/* 2. Critical Alerts + AI Reorder — the operational core */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <CriticalAlerts />
-        <ReorderSuggestions />
-      </div>
-
-      {/* 3. Sales Metrics — secondary */}
+      {/* Secondary: Business metrics */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Today's Sales"
@@ -45,7 +38,7 @@ const Dashboard = () => {
           icon={<IndianRupee className="h-10 w-10 text-primary/20" />}
         />
         <StatCard
-          title="Total Transactions"
+          title="Transactions"
           value="48"
           trend={8}
           trendLabel="last 7 days"
@@ -59,7 +52,7 @@ const Dashboard = () => {
           icon={<Package className="h-10 w-10 text-success/20" />}
         />
         <StatCard
-          title="Today's Expenses"
+          title="Expenses"
           value="₹8,200"
           trend={-3}
           trendLabel="vs yesterday"
@@ -67,11 +60,18 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* 4. Sales Chart — compact */}
-      <SalesChart />
+      {/* Tertiary: Chart + Top Sellers side by side */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+        <div className="lg:col-span-3">
+          <SalesChart />
+        </div>
+        <div className="lg:col-span-2">
+          <TopSellingTable />
+        </div>
+      </div>
 
-      {/* 5. Top Medicines with Profit */}
-      <TopSellingTable />
+      {/* Bottom: Alerts — reference, not primary focus */}
+      <CriticalAlerts />
     </div>
   );
 };

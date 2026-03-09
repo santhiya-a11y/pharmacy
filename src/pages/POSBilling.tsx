@@ -568,30 +568,52 @@ const POSBilling = () => {
                         />
                       </td>
                       <td className="px-2 py-2 text-right font-bold tabular-nums text-card-foreground">₹{getItemAmount(item).toFixed(2)}</td>
+                      {/* Frequency column */}
+                      <td className="px-2 py-2">
+                        {!item.isBag && (
+                          item.frequency ? (
+                            <button
+                              onClick={() => { setFrequencyTargetId(item.id); setShowFrequency(true); }}
+                              className="text-left w-full"
+                              title="Edit frequency"
+                            >
+                              <p className="text-[10px] font-bold font-mono text-card-foreground leading-tight">{item.frequency.pattern}</p>
+                              <p className="text-[8px] text-muted-foreground leading-tight truncate">{item.frequency.labelEn}</p>
+                              <p className="text-[8px] text-muted-foreground leading-tight truncate">{item.frequency.mealEn}</p>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => { setFrequencyTargetId(item.id); setShowFrequency(true); }}
+                              className="rounded p-1 hover:bg-secondary text-muted-foreground transition-colors"
+                              title="Set frequency"
+                            >
+                              <CalendarClock className="h-3 w-3" />
+                            </button>
+                          )
+                        )}
+                      </td>
+                      {/* Rx column — always visible */}
                       <td className="px-1 py-2">
                         {!item.isBag && (
-                          <div className="flex items-center gap-0.5 justify-center">
-                            {item.requiresRx && (
-                              <button
-                                onClick={() => openRxDialog(item.id)}
-                                className={`rounded p-1 transition-colors ${
-                                  item.rxVerified
-                                    ? "bg-chart-2/10 text-chart-2"
-                                    : "bg-destructive/10 text-destructive hover:bg-destructive/20"
-                                }`}
-                                title={item.rxVerified ? `Verified · Dr. ${item.rxDoctorName}` : "Attach prescription"}
-                              >
-                                <Paperclip className="h-3 w-3" />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => setDosageTarget(item)}
-                              className={`rounded p-1 transition-colors ${item.dosageLabel ? "bg-primary/10 text-primary" : "hover:bg-secondary text-muted-foreground"}`}
-                              title={item.dosageLabel || "Set dosage"}
-                            >
-                              <Pill className="h-3 w-3" />
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => handleRxClick(item.id)}
+                            className={`rounded p-1 transition-colors ${
+                              item.requiresRx
+                                ? item.rxVerified
+                                  ? "bg-chart-2/10 text-chart-2"
+                                  : "bg-destructive/10 text-destructive hover:bg-destructive/20"
+                                : item.frequency
+                                  ? "bg-primary/10 text-primary"
+                                  : "hover:bg-secondary text-muted-foreground"
+                            }`}
+                            title={
+                              item.requiresRx
+                                ? item.rxVerified ? `Verified · Dr. ${item.rxDoctorName}` : "Attach prescription"
+                                : item.frequency ? item.frequency.pattern : "Set frequency"
+                            }
+                          >
+                            {item.requiresRx ? <Paperclip className="h-3 w-3" /> : <Pill className="h-3 w-3" />}
+                          </button>
                         )}
                       </td>
                       <td className="px-1 py-2">

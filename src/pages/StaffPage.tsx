@@ -150,6 +150,7 @@ const StaffPage = () => {
                     </div>
                     <div>
                       <h3 className="font-semibold text-card-foreground">{member.name}</h3>
+                      <p className="text-[10px] text-muted-foreground font-mono">{member.id}</p>
                       <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium mt-0.5 ${roleColors[member.role] || "bg-secondary text-secondary-foreground"}`}>
                         {member.role}
                       </span>

@@ -510,6 +510,7 @@ const POSBilling = () => {
                   <th className="text-right px-2 py-2.5">CGST</th>
                   <th className="text-right px-2 py-2.5">Disc%</th>
                   <th className="text-right px-2 py-2.5">Amount</th>
+                  <th className="text-left px-2 py-2.5">Frequency</th>
                   <th className="text-center px-1 py-2.5">Rx</th>
                   <th className="px-1 py-2.5"></th>
                 </tr>

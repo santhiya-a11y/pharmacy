@@ -26,6 +26,18 @@ type PaymentStatus = "pending" | "partial" | "paid";
 
 interface POItem { drug: string; qty: number; rate: number; }
 
+interface ReceiveItem {
+  drug: string;
+  orderedQty: number;
+  receivedQty: number;
+  batch: string;
+  expiry: string;
+  mrp: number;
+  rackLocation: string;
+}
+
+interface PurchaseOrder {
+
 interface PurchaseOrder {
   id: string;
   supplier: string;

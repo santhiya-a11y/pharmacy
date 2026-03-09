@@ -4,7 +4,7 @@ import {
   Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone,
   ShoppingBag, Pill, ArrowLeft, Keyboard, Clock, User, Pause, Printer, Hash,
   AlertTriangle, FileText, ChevronRight, X, SplitSquareHorizontal, Paperclip,
-  Camera, Upload, Star, Gift, Phone
+  Camera, Upload, Star, Gift, Phone, CalendarClock
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";

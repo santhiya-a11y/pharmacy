@@ -260,35 +260,25 @@ const SettingsPage = () => {
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {bagConfigs.map(bag => (
-                    <div key={bag.id} className="rounded-xl border border-border p-3 space-y-2">
-                      {/* Image area */}
+                    <div key={bag.id} className="rounded-xl border border-border p-3 space-y-2 relative group/card">
+                      <button
+                        onClick={() => handleDeleteBag(bag.id)}
+                        className="absolute top-1.5 right-1.5 z-10 bg-destructive/90 rounded-full p-1 opacity-0 group-hover/card:opacity-100 transition-opacity"
+                        title="Delete bag"
+                      >
+                        <Trash2 className="h-3 w-3 text-destructive-foreground" />
+                      </button>
                       <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-muted/50 flex items-center justify-center group">
                         {bag.imageUrl ? (
                           <>
                             <img src={bag.imageUrl} alt={bag.name} className="w-full h-full object-cover" />
-                            <button
-                              onClick={() => removeBagImage(bag.id)}
-                              className="absolute top-1 right-1 bg-destructive/90 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              <X className="h-3 w-3 text-destructive-foreground" />
-                            </button>
-                            <button
-                              onClick={() => handleBagImageUpload(bag.id)}
-                              className="absolute bottom-1 right-1 bg-background/90 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity border border-border"
-                            >
-                              <Upload className="h-3 w-3 text-foreground" />
-                            </button>
+                            <button onClick={() => removeBagImage(bag.id)} className="absolute top-1 right-1 bg-destructive/90 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3 text-destructive-foreground" /></button>
+                            <button onClick={() => handleBagImageUpload(bag.id)} className="absolute bottom-1 right-1 bg-background/90 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity border border-border"><Upload className="h-3 w-3 text-foreground" /></button>
                           </>
                         ) : (
-                          <button
-                            onClick={() => handleBagImageUpload(bag.id)}
-                            className="w-full h-full flex flex-col items-center justify-center gap-1 hover:bg-muted transition-colors rounded-lg"
-                          >
+                          <button onClick={() => handleBagImageUpload(bag.id)} className="w-full h-full flex flex-col items-center justify-center gap-1 hover:bg-muted transition-colors rounded-lg">
                             <span className="text-2xl">{bag.icon}</span>
-                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Upload className="h-3 w-3" />
-                              Upload
-                            </div>
+                            <div className="flex items-center gap-1 text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"><Upload className="h-3 w-3" />Upload</div>
                           </button>
                         )}
                       </div>
@@ -297,21 +287,68 @@ const SettingsPage = () => {
                         <Badge variant="outline" className="text-[9px] h-4 px-1">{bag.size}</Badge>
                         <div className="flex items-center gap-0.5 flex-1">
                           <span className="text-[10px] text-muted-foreground">₹</span>
-                          <input
-                            type="number"
-                            min={0}
-                            value={bag.price}
-                            onChange={e => updateBagPrice(bag.id, parseFloat(e.target.value) || 0)}
-                            className="w-full rounded border border-border bg-background px-1.5 py-0.5 text-xs text-right tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
-                          />
+                          <input type="number" min={0} value={bag.price} onChange={e => updateBagPrice(bag.id, parseFloat(e.target.value) || 0)} className="w-full rounded border border-border bg-background px-1.5 py-0.5 text-xs text-right tabular-nums focus:outline-none focus:ring-1 focus:ring-ring" />
                         </div>
                       </div>
                     </div>
                   ))}
+                  {/* Add New Bag Card */}
+                  <button
+                    onClick={() => setShowAddBag(true)}
+                    className="rounded-xl border-2 border-dashed border-border p-3 flex flex-col items-center justify-center gap-2 hover:border-primary/40 hover:bg-muted/30 transition-colors min-h-[180px]"
+                  >
+                    <Plus className="h-8 w-8 text-muted-foreground" />
+                    <span className="text-xs font-medium text-muted-foreground">Add New Bag</span>
+                  </button>
                 </div>
                 <div className="mt-4">
                   <Button size="sm"><Save className="h-4 w-4 mr-1" />Save Bag Settings</Button>
                 </div>
+
+                {/* Add Bag Dialog */}
+                <Dialog open={showAddBag} onOpenChange={setShowAddBag}>
+                  <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                      <DialogTitle>Add New Bag</DialogTitle>
+                      <DialogDescription>Configure a new bag type for POS billing</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 pt-2">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Bag Name</Label>
+                        <Input className="h-9" placeholder="e.g. Premium Gift Bag" value={newBag.name} onChange={e => setNewBag(p => ({ ...p, name: e.target.value }))} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Size</Label>
+                          <Select value={newBag.size} onValueChange={v => setNewBag(p => ({ ...p, size: v }))}>
+                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Small">Small</SelectItem>
+                              <SelectItem value="Medium">Medium</SelectItem>
+                              <SelectItem value="Large">Large</SelectItem>
+                              <SelectItem value="Standard">Standard</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Price (₹)</Label>
+                          <Input type="number" min={0} className="h-9" value={newBag.price} onChange={e => setNewBag(p => ({ ...p, price: parseFloat(e.target.value) || 0 }))} />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Icon</Label>
+                        <div className="flex gap-2">
+                          {["🛍️", "📦", "🏷️", "♻️", "🎁", "👜"].map(icon => (
+                            <button key={icon} onClick={() => setNewBag(p => ({ ...p, icon }))} className={`text-xl p-1.5 rounded-lg border-2 transition-colors ${newBag.icon === icon ? "border-primary bg-primary/5" : "border-transparent hover:border-border"}`}>{icon}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <Button className="w-full" size="sm" onClick={handleAddBag} disabled={!newBag.name.trim()}>
+                        <Plus className="h-4 w-4 mr-1" />Add Bag
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
           )}

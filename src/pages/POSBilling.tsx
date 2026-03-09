@@ -584,8 +584,9 @@ const POSBilling = () => {
               </button>
             )}
           </div>
-          <div className="flex items-center gap-3 text-muted-foreground">
-            <span className="hidden md:flex items-center gap-1"><Keyboard className="h-3 w-3" /> F1 Search · F3 Hold · F5-F8 Pay · F9 Complete</span>
+          <div className="flex items-center gap-4">
+            <span className="font-bold text-foreground text-sm tabular-nums">Total: ₹{Math.max(0, grandTotal).toFixed(2)}</span>
+            <span className="hidden md:flex items-center gap-1 text-muted-foreground"><Keyboard className="h-3 w-3" /> F1 Search · F3 Hold · F5-F8 Pay · F9 Complete</span>
           </div>
         </div>
       </div>

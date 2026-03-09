@@ -34,6 +34,7 @@ const adminNavGroups = [
   {
     label: "Operations",
     items: [
+      { label: "Counters", icon: Receipt, path: "/counters" },
       { label: "Staff", icon: UserCog, path: "/staff" },
       { label: "Expenses", icon: Wallet, path: "/expenses" },
       { label: "Activity Log", icon: Activity, path: "/activity" },

@@ -120,6 +120,12 @@ const PurchasesPage = () => {
   const [poRemarks, setPoRemarks] = useState("");
   const [poDueDate, setPoDueDate] = useState("");
 
+  // Expiring/low stock items filtered by selected supplier
+  const supplierExpiringItems = useMemo(() => {
+    if (!poSupplier) return [];
+    return inventoryData.filter(item => item.supplier === poSupplier && (item.status === "expiring" || item.status === "low"));
+  }, [poSupplier]);
+
   // PDF
   const printRef = useRef<HTMLDivElement>(null);
   const [printingPO, setPrintingPO] = useState<PurchaseOrder | null>(null);

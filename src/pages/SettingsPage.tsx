@@ -52,6 +52,7 @@ const SettingsPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingBagId, setUploadingBagId] = useState<string | null>(null);
   const [showAddBag, setShowAddBag] = useState(false);
+  const [editingBag, setEditingBag] = useState<BagConfig | null>(null);
   const [newBag, setNewBag] = useState({ name: "", size: "Medium", price: 0, icon: "🛍️" });
 
   const handleBagImageUpload = (bagId: string) => {

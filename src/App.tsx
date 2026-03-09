@@ -7,7 +7,7 @@ import { RoleProvider } from "./contexts/RoleContext";
 import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import POSBilling from "./pages/POSBilling";
-import MedicinesPage from "./pages/MedicinesPage";
+
 import InventoryPage from "./pages/InventoryPage";
 import ReportsPage from "./pages/ReportsPage";
 import StaffPage from "./pages/StaffPage";

@@ -89,6 +89,16 @@ const SettingsPage = () => {
     setBagConfigs(prev => prev.filter(b => b.id !== bagId));
   };
 
+  const handleEditBag = (bag: BagConfig) => {
+    setEditingBag({ ...bag });
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingBag || !editingBag.name.trim()) return;
+    setBagConfigs(prev => prev.map(b => b.id === editingBag.id ? editingBag : b));
+    setEditingBag(null);
+  };
+
   return (
     <div className="space-y-5 animate-fade-in">
       <div>

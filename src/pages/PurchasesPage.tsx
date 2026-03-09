@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import {
   Search, Plus, Package, Truck, IndianRupee, Clock, ClipboardList,
   CheckCircle2, XCircle, Eye, Send, MessageCircle, Mail, Copy, Check, Download, Minus, X,
-  AlertTriangle
+  AlertTriangle, PackageCheck, Warehouse
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
@@ -25,6 +25,16 @@ type OrderStatus = "draft" | "ordered" | "delivered" | "cancelled";
 type PaymentStatus = "pending" | "partial" | "paid";
 
 interface POItem { drug: string; qty: number; rate: number; }
+
+interface ReceiveItem {
+  drug: string;
+  orderedQty: number;
+  receivedQty: number;
+  batch: string;
+  expiry: string;
+  mrp: number;
+  rackLocation: string;
+}
 
 interface PurchaseOrder {
   id: string;
@@ -113,6 +123,11 @@ const PurchasesPage = () => {
   const [paymentTarget, setPaymentTarget] = useState<PurchaseOrder | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
 
+  // Receive Stock state
+  const [showReceiveStock, setShowReceiveStock] = useState(false);
+  const [receiveTarget, setReceiveTarget] = useState<PurchaseOrder | null>(null);
+  const [receiveItems, setReceiveItems] = useState<ReceiveItem[]>([]);
+
   // New PO form state
   const [poSupplier, setPoSupplier] = useState("");
   const [poItems, setPoItems] = useState<POItem[]>([{ drug: "", qty: 0, rate: 0 }]);
@@ -167,6 +182,39 @@ const PurchasesPage = () => {
   const handleRecordPayment = () => {
     toast.success(`Payment of ₹${paymentAmount} recorded for ${paymentTarget?.id}`);
     setShowPaymentDialog(false);
+  };
+
+  const openReceiveStock = (order: PurchaseOrder) => {
+    setReceiveTarget(order);
+    setReceiveItems(order.items.map(item => ({
+      drug: item.drug,
+      orderedQty: item.qty,
+      receivedQty: item.qty,
+      batch: "",
+      expiry: "",
+      mrp: item.rate * 1.3, // default MRP ~30% markup
+      rackLocation: "",
+    })));
+    setShowReceiveStock(true);
+    setSelected(null);
+  };
+
+  const updateReceiveItem = (index: number, field: keyof ReceiveItem, value: string | number) => {
+    setReceiveItems(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+  };
+
+  const handleReceiveStock = () => {
+    const validItems = receiveItems.filter(i => i.receivedQty > 0 && i.batch.trim());
+    if (validItems.length === 0) {
+      toast.error("Please enter batch number for at least one item");
+      return;
+    }
+    const totalReceived = validItems.reduce((s, i) => s + i.receivedQty, 0);
+    toast.success(`${totalReceived} units from ${receiveTarget?.id} added to inventory`, {
+      description: `${validItems.length} items received from ${receiveTarget?.supplier}`,
+    });
+    setShowReceiveStock(false);
+    setReceiveTarget(null);
   };
 
   const sendOrderToSupplier = (order: PurchaseOrder) => {
@@ -368,6 +416,11 @@ const PurchasesPage = () => {
                 <TableCell className="text-sm text-right text-muted-foreground">{order.dueDate || "—"}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center gap-1 justify-end" onClick={e => e.stopPropagation()}>
+                    {(order.status === "ordered" || order.status === "delivered") && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-chart-2 border-chart-2/30 hover:bg-chart-2/10" onClick={() => openReceiveStock(order)}>
+                        <PackageCheck className="h-3 w-3" /> Receive
+                      </Button>
+                    )}
                     {order.status !== "cancelled" && order.paymentStatus !== "paid" && (
                       <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openPayment(order)}>Pay</Button>
                     )}
@@ -470,6 +523,16 @@ const PurchasesPage = () => {
 
               {/* Actions */}
               <div className="space-y-2 pt-2 border-t border-border">
+                {/* Receive Stock - for ordered/delivered POs */}
+                {(selected.status === "ordered" || selected.status === "delivered") && (
+                  <Button
+                    size="sm"
+                    className="w-full gap-2 bg-chart-2 hover:bg-chart-2/90 text-white"
+                    onClick={() => openReceiveStock(selected)}
+                  >
+                    <PackageCheck className="h-4 w-4" /> Receive Stock & Add to Inventory
+                  </Button>
+                )}
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => handleDownloadExistingPO(selected)}>
                     <Download className="h-3.5 w-3.5" /> Download PDF
@@ -564,7 +627,128 @@ const PurchasesPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Create / Edit PO Dialog — Full featured */}
+      {/* Receive Stock Dialog */}
+      <Dialog open={showReceiveStock} onOpenChange={setShowReceiveStock}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PackageCheck className="h-5 w-5 text-chart-2" />
+              Receive Stock — {receiveTarget?.id}
+            </DialogTitle>
+            <DialogDescription>
+              Verify received quantities, enter batch & expiry details to add items to inventory
+            </DialogDescription>
+          </DialogHeader>
+
+          {receiveTarget && (
+            <div className="space-y-4">
+              {/* Supplier info */}
+              <div className="flex items-center gap-2 rounded-lg bg-secondary/50 px-3 py-2">
+                <Truck className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">{receiveTarget.supplier}</span>
+                <span className="text-xs text-muted-foreground">· {receiveTarget.date}</span>
+              </div>
+
+              {/* Items table */}
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-secondary/50 border-b border-border">
+                      <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground">Item</th>
+                      <th className="px-2 py-2.5 text-center text-[10px] font-semibold text-muted-foreground w-16">Ordered</th>
+                      <th className="px-2 py-2.5 text-center text-[10px] font-semibold text-muted-foreground w-20">Received</th>
+                      <th className="px-2 py-2.5 text-left text-[10px] font-semibold text-muted-foreground w-24">Batch *</th>
+                      <th className="px-2 py-2.5 text-left text-[10px] font-semibold text-muted-foreground w-28">Expiry</th>
+                      <th className="px-2 py-2.5 text-right text-[10px] font-semibold text-muted-foreground w-20">MRP (₹)</th>
+                      <th className="px-2 py-2.5 text-left text-[10px] font-semibold text-muted-foreground w-24">Rack</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {receiveItems.map((item, i) => (
+                      <tr key={i} className="border-b border-border/50">
+                        <td className="px-3 py-2 font-medium text-foreground">{item.drug}</td>
+                        <td className="px-2 py-2 text-center text-muted-foreground">{item.orderedQty}</td>
+                        <td className="px-2 py-2">
+                          <Input
+                            type="number"
+                            value={item.receivedQty}
+                            onChange={e => updateReceiveItem(i, "receivedQty", Number(e.target.value))}
+                            className="h-7 text-xs text-center w-16 mx-auto"
+                            min={0}
+                            max={item.orderedQty}
+                          />
+                        </td>
+                        <td className="px-2 py-2">
+                          <Input
+                            value={item.batch}
+                            onChange={e => updateReceiveItem(i, "batch", e.target.value)}
+                            placeholder="Batch #"
+                            className="h-7 text-xs w-20"
+                          />
+                        </td>
+                        <td className="px-2 py-2">
+                          <Input
+                            type="month"
+                            value={item.expiry}
+                            onChange={e => updateReceiveItem(i, "expiry", e.target.value)}
+                            className="h-7 text-xs w-28"
+                          />
+                        </td>
+                        <td className="px-2 py-2">
+                          <Input
+                            type="number"
+                            value={item.mrp}
+                            onChange={e => updateReceiveItem(i, "mrp", Number(e.target.value))}
+                            className="h-7 text-xs text-right w-20"
+                          />
+                        </td>
+                        <td className="px-2 py-2">
+                          <Input
+                            value={item.rackLocation}
+                            onChange={e => updateReceiveItem(i, "rackLocation", e.target.value)}
+                            placeholder="e.g. A1-3"
+                            className="h-7 text-xs w-20"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Summary */}
+              <div className="flex items-center justify-between rounded-lg bg-chart-2/5 border border-chart-2/20 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Warehouse className="h-4 w-4 text-chart-2" />
+                  <span className="text-sm font-medium text-foreground">
+                    {receiveItems.filter(i => i.receivedQty > 0 && i.batch.trim()).length} of {receiveItems.length} items ready
+                  </span>
+                </div>
+                <span className="text-sm font-bold text-foreground">
+                  Total: {receiveItems.reduce((s, i) => s + i.receivedQty, 0)} units
+                </span>
+              </div>
+
+              {receiveItems.some(i => i.receivedQty < i.orderedQty) && (
+                <div className="flex items-center gap-2 rounded-lg bg-chart-4/10 border border-chart-4/20 px-3 py-2">
+                  <AlertTriangle className="h-4 w-4 text-chart-4" />
+                  <span className="text-xs text-chart-4 font-medium">
+                    Some items have partial or zero quantities — short delivery will be noted
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowReceiveStock(false)}>Cancel</Button>
+            <Button className="gap-2 bg-chart-2 hover:bg-chart-2/90" onClick={handleReceiveStock}>
+              <PackageCheck className="h-4 w-4" /> Confirm & Add to Inventory
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showAdd} onOpenChange={v => { if (!v) { setShowAdd(false); resetPOForm(); } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>

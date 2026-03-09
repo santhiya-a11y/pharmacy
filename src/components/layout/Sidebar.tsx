@@ -19,7 +19,6 @@ const adminNavGroups = [
   {
     label: "Inventory",
     items: [
-      { label: "Medicines", icon: Pill, path: "/medicines" },
       { label: "Stock", icon: Warehouse, path: "/inventory" },
       { label: "Purchases", icon: Package, path: "/purchases" },
       { label: "Returns", icon: RotateCcw, path: "/returns" },

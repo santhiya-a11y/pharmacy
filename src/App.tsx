@@ -7,7 +7,7 @@ import { RoleProvider } from "./contexts/RoleContext";
 import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import POSBilling from "./pages/POSBilling";
-import MedicinesPage from "./pages/MedicinesPage";
+
 import InventoryPage from "./pages/InventoryPage";
 import ReportsPage from "./pages/ReportsPage";
 import StaffPage from "./pages/StaffPage";
@@ -35,7 +35,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
             <Route path="/pos" element={<POSBilling />} />
-            <Route path="/medicines" element={<AppLayout><MedicinesPage /></AppLayout>} />
+            
             <Route path="/inventory" element={<AppLayout><InventoryPage /></AppLayout>} />
             <Route path="/purchases" element={<AppLayout><PurchasesPage /></AppLayout>} />
             <Route path="/suppliers" element={<AppLayout><SuppliersPage /></AppLayout>} />

@@ -604,95 +604,108 @@ const POSBilling = () => {
 
       {/* ─── Right: Payment Panel ─── */}
       <div className="w-80 shrink-0 border-l border-border bg-card flex flex-col">
-        {/* Customer — Always visible name + phone fields */}
-        <div className="p-3 border-b border-border space-y-2">
-          <div className="flex items-center gap-2 mb-1">
-            <User className="h-4 w-4 text-primary" />
-            <span className="text-xs font-semibold text-foreground">Customer Details</span>
-          </div>
-          <div className="space-y-1.5">
-            <div className="relative">
-              <Input
-                placeholder="Customer name"
-                value={customerName}
-                onChange={e => {
-                  setCustomerName(e.target.value);
-                  setSelectedCustomer(null);
-                  setRedeemPoints(0);
-                }}
-                className="h-8 text-xs pr-8"
-              />
-              {selectedCustomer && (
-                <button onClick={() => { setSelectedCustomer(null); setCustomerName(""); setCustomerPhone(""); setRedeemPoints(0); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-secondary">
-                  <X className="h-3 w-3 text-muted-foreground" />
-                </button>
-              )}
+        {/* Customer Section */}
+        <div className="p-4 border-b border-border">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4 text-primary" />
+              <span className="text-xs font-semibold text-foreground">Customer</span>
             </div>
-            <div className="relative">
-              <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-              <Input
-                placeholder="Phone number"
-                value={customerPhone}
-                onChange={e => {
-                  setCustomerPhone(e.target.value);
-                  // Auto-search existing customers by phone
-                  const match = SAMPLE_CUSTOMERS_INLINE.find(c => c.phone === e.target.value);
-                  if (match) {
-                    setSelectedCustomer(match);
-                    setCustomerName(match.name);
-                  } else if (selectedCustomer) {
+            <button
+              onClick={() => setShowCustomerSelector(true)}
+              className="text-[10px] font-medium text-primary hover:underline flex items-center gap-1"
+            >
+              <Search className="h-3 w-3" /> Search
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-[10px] text-muted-foreground">Name</Label>
+              <div className="relative">
+                <Input
+                  placeholder="Customer name"
+                  value={customerName}
+                  onChange={e => {
+                    setCustomerName(e.target.value);
                     setSelectedCustomer(null);
                     setRedeemPoints(0);
-                  }
-                }}
-                className="h-8 text-xs pl-8"
-              />
-            </div>
-            {/* Quick search existing customers */}
-            {!selectedCustomer && (customerName.length >= 2 || customerPhone.length >= 3) && (
-              (() => {
-                const matches = SAMPLE_CUSTOMERS_INLINE.filter(c =>
-                  (customerName.length >= 2 && c.name.toLowerCase().includes(customerName.toLowerCase())) ||
-                  (customerPhone.length >= 3 && c.phone.includes(customerPhone))
-                );
-                return matches.length > 0 ? (
-                  <div className="border border-border rounded-lg bg-background shadow-md max-h-32 overflow-y-auto">
-                    {matches.map(c => (
-                      <button
-                        key={c.id}
-                        onClick={() => {
-                          setSelectedCustomer(c);
-                          setCustomerName(c.name);
-                          setCustomerPhone(c.phone);
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-accent transition-colors text-xs"
-                      >
-                        <User className="h-3 w-3 text-muted-foreground shrink-0" />
-                        <span className="font-medium text-foreground truncate">{c.name}</span>
-                        <span className="text-muted-foreground ml-auto text-[10px]">{c.phone}</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : null;
-              })()
-            )}
-            {selectedCustomer && (
-              <div className="flex items-center gap-2 bg-primary/5 rounded-lg px-2.5 py-1.5">
-                <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="h-2.5 w-2.5 text-primary" />
-                </div>
-                <span className="text-[10px] text-primary font-medium">Existing customer linked</span>
-                {customerLoyaltyPoints > 0 && (
-                  <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-chart-4/40 text-chart-4 ml-auto">{customerLoyaltyPoints} pts</Badge>
+                  }}
+                  className="h-8 text-xs"
+                />
+                {selectedCustomer && (
+                  <button onClick={() => { setSelectedCustomer(null); setCustomerName(""); setCustomerPhone(""); setRedeemPoints(0); }} className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-secondary">
+                    <X className="h-3 w-3 text-muted-foreground" />
+                  </button>
                 )}
               </div>
-            )}
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] text-muted-foreground">Phone</Label>
+              <div className="relative">
+                <Phone className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <Input
+                  placeholder="Phone number"
+                  value={customerPhone}
+                  onChange={e => {
+                    setCustomerPhone(e.target.value);
+                    const match = SAMPLE_CUSTOMERS_INLINE.find(c => c.phone === e.target.value);
+                    if (match) {
+                      setSelectedCustomer(match);
+                      setCustomerName(match.name);
+                    } else if (selectedCustomer) {
+                      setSelectedCustomer(null);
+                      setRedeemPoints(0);
+                    }
+                  }}
+                  className="h-8 text-xs pl-7"
+                />
+              </div>
+            </div>
           </div>
+          {/* Quick search dropdown */}
+          {!selectedCustomer && (customerName.length >= 2 || customerPhone.length >= 3) && (
+            (() => {
+              const matches = SAMPLE_CUSTOMERS_INLINE.filter(c =>
+                (customerName.length >= 2 && c.name.toLowerCase().includes(customerName.toLowerCase())) ||
+                (customerPhone.length >= 3 && c.phone.includes(customerPhone))
+              );
+              return matches.length > 0 ? (
+                <div className="mt-2 border border-border rounded-lg bg-background shadow-md max-h-28 overflow-y-auto">
+                  {matches.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => {
+                        setSelectedCustomer(c);
+                        setCustomerName(c.name);
+                        setCustomerPhone(c.phone);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-left hover:bg-accent transition-colors text-xs"
+                    >
+                      <User className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <span className="font-medium text-foreground truncate">{c.name}</span>
+                      <span className="text-muted-foreground ml-auto text-[10px]">{c.phone}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null;
+            })()
+          )}
+          {selectedCustomer && (
+            <div className="flex items-center gap-2 mt-2 bg-primary/5 rounded-lg px-2.5 py-1.5">
+              <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
+                <User className="h-2.5 w-2.5 text-primary" />
+              </div>
+              <span className="text-[10px] text-primary font-medium">Linked</span>
+              {customerLoyaltyPoints > 0 && (
+                <Badge variant="outline" className="text-[9px] h-4 px-1.5 border-chart-4/40 text-chart-4 ml-auto">{customerLoyaltyPoints} pts</Badge>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Loyalty Points Redemption */}
         {selectedCustomer && customerLoyaltyPoints > 0 && (
-          <div className="px-3 py-2 border-b border-border bg-chart-4/5">
+          <div className="px-4 py-2.5 border-b border-border bg-chart-4/5">
             <div className="flex items-center gap-2">
               <Star className="h-3.5 w-3.5 text-chart-4" />
               <span className="text-[11px] font-medium text-foreground">Redeem Points</span>
@@ -712,34 +725,39 @@ const POSBilling = () => {
           </div>
         )}
 
-        {/* Bill Summary — clean, compact */}
-        <div className="p-3 border-b border-border flex-1 overflow-y-auto">
-          <div className="space-y-1.5 text-xs">
+        {/* Bill Summary */}
+        <div className="px-4 py-3 border-b border-border flex-1 overflow-y-auto">
+          <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-3">Bill Summary</h3>
+          <div className="space-y-2 text-xs">
             <div className="flex justify-between text-muted-foreground">
-              <span>Subtotal ({cart.length} items, {totalQty} units)</span>
+              <span>Subtotal ({cart.length} items, {totalQty} qty)</span>
               <span className="tabular-nums font-medium">₹{subtotal.toFixed(2)}</span>
             </div>
             {totalDiscount > 0 && (
               <div className="flex justify-between text-muted-foreground">
                 <span>Discount</span>
-                <span className="text-destructive tabular-nums font-medium">-₹{totalDiscount.toFixed(2)}</span>
+                <span className="text-destructive tabular-nums font-medium">−₹{totalDiscount.toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between text-muted-foreground">
-              <span>GST (SGST + CGST)</span>
-              <span className="tabular-nums font-medium">₹{(totalSgst + totalCgst).toFixed(2)}</span>
+              <span>SGST</span>
+              <span className="tabular-nums font-medium">₹{totalSgst.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-muted-foreground">
+              <span>CGST</span>
+              <span className="tabular-nums font-medium">₹{totalCgst.toFixed(2)}</span>
             </div>
             {pointsValue > 0 && (
               <div className="flex justify-between text-chart-4">
                 <span className="flex items-center gap-1"><Star className="h-3 w-3" /> Loyalty</span>
-                <span className="tabular-nums font-medium">-₹{pointsValue.toFixed(2)}</span>
+                <span className="tabular-nums font-medium">−₹{pointsValue.toFixed(2)}</span>
               </div>
             )}
           </div>
 
-          {/* Grand Total — high visual weight */}
+          {/* Grand Total */}
           <div className="border-t border-border mt-3 pt-3">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-baseline">
               <span className="text-sm font-bold text-foreground">Grand Total</span>
               <span className="text-xl font-extrabold text-primary tabular-nums">₹{Math.max(0, grandTotal).toFixed(2)}</span>
             </div>

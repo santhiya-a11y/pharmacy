@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import AdminAttendanceView from "@/components/staff/AdminAttendanceView";
+import StaffDetailPanel from "@/components/staff/StaffDetailPanel";
 
 interface StaffMember {
   id: string;

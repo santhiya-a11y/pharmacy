@@ -967,6 +967,15 @@ const POSBilling = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Frequency Selector */}
+      <FrequencySelector
+        open={showFrequency}
+        onClose={() => { setShowFrequency(false); setFrequencyTargetId(null); }}
+        medicineName={cart.find(c => c.id === frequencyTargetId)?.name || ""}
+        onSave={handleFrequencySave}
+        initialData={cart.find(c => c.id === frequencyTargetId)?.frequency}
+      />
+
       {/* Dosage Builder Dialog */}
       <Dialog open={!!dosageTarget} onOpenChange={() => setDosageTarget(null)}>
         <DialogContent className="max-w-md">

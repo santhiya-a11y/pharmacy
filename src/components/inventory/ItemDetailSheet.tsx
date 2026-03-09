@@ -1,7 +1,7 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, MapPin, Package, ShoppingCart, Calendar, Building2, Hash, Pill, TrendingDown } from "lucide-react";
+import { AlertTriangle, MapPin, Package, ClipboardList, Calendar, Building2, Hash, Pill, TrendingDown } from "lucide-react";
 
 export interface InventoryItem {
   name: string;

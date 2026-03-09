@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Settings, Building2, Receipt, Bell, Shield, Printer,
-  Globe, Database, Users, Save, ShoppingBag, Upload, X, Image, FileText, Plus, Trash2
+  Globe, Database, Users, Save, ShoppingBag, Upload, X, Image, FileText, Plus, Trash2, Pencil
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";

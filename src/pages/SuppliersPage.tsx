@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Truck, Phone, MapPin, Star, IndianRupee, MessageCircle, Mail, Send, Copy, Check } from "lucide-react";
+import { Search, Plus, Truck, Phone, MapPin, Star, IndianRupee, MessageCircle, Mail, Send, Copy, Check, Eye } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";

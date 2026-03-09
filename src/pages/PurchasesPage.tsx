@@ -441,16 +441,56 @@ const PurchasesPage = () => {
               )}
 
               {/* Actions */}
-              <div className="flex gap-2 pt-1 border-t border-border">
-                <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => handleDownloadExistingPO(selected)}>
-                  <Download className="h-3.5 w-3.5" /> Download PDF
-                </Button>
-                <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => sendOrderToSupplier(selected)}>
-                  <Send className="h-3.5 w-3.5" /> Send to Supplier
-                </Button>
-                {selected.paymentStatus !== "paid" && (
-                  <Button size="sm" className="flex-1" onClick={() => { setSelected(null); openPayment(selected); }}>Record Payment</Button>
-                )}
+              <div className="space-y-2 pt-2 border-t border-border">
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => handleDownloadExistingPO(selected)}>
+                    <Download className="h-3.5 w-3.5" /> Download PDF
+                  </Button>
+                  {selected.paymentStatus !== "paid" && (
+                    <Button size="sm" className="flex-1" onClick={() => { setSelected(null); openPayment(selected); }}>Record Payment</Button>
+                  )}
+                </div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Send PO to Supplier</p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 gap-1.5 bg-chart-2/10 hover:bg-chart-2/20 text-chart-2 border-chart-2/30"
+                    disabled={!selected.supplierWhatsapp}
+                    onClick={() => {
+                      const msg = `Purchase Order: ${selected.id}\n\nItems:\n${selected.items.map((i, idx) => `${idx + 1}. ${i.drug} - Qty: ${i.qty} @ ₹${i.rate}`).join("\n")}\n\nTotal: ₹${selected.totalAmount.toLocaleString()}\n\nPlease confirm availability and delivery date.`;
+                      window.open(`https://wa.me/${selected.supplierWhatsapp}?text=${encodeURIComponent(msg)}`, "_blank");
+                      toast.success("Opening WhatsApp...");
+                    }}
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 gap-1.5"
+                    disabled={!selected.supplierEmail}
+                    onClick={() => {
+                      const msg = `Purchase Order: ${selected.id}\n\nItems:\n${selected.items.map((i, idx) => `${idx + 1}. ${i.drug} - Qty: ${i.qty} @ ₹${i.rate}`).join("\n")}\n\nTotal: ₹${selected.totalAmount.toLocaleString()}\n\nPlease confirm availability and delivery date.`;
+                      window.open(`mailto:${selected.supplierEmail}?subject=${encodeURIComponent(`Purchase Order: ${selected.id}`)}&body=${encodeURIComponent(msg)}`);
+                      toast.success("Opening email...");
+                    }}
+                  >
+                    <Mail className="h-3.5 w-3.5" /> Email
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 gap-1.5"
+                    onClick={() => {
+                      const msg = `Purchase Order: ${selected.id}\n\nItems:\n${selected.items.map((i, idx) => `${idx + 1}. ${i.drug} - Qty: ${i.qty} @ ₹${i.rate}`).join("\n")}\n\nTotal: ₹${selected.totalAmount.toLocaleString()}\n\nPlease confirm availability and delivery date.`;
+                      navigator.clipboard.writeText(msg);
+                      toast.success("PO details copied to clipboard");
+                    }}
+                  >
+                    <Copy className="h-3.5 w-3.5" /> Copy
+                  </Button>
+                </div>
               </div>
             </div>
           )}

@@ -1,11 +1,10 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Search, Filter, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import AddStockDialog from "@/components/inventory/AddStockDialog";
 import ItemDetailSheet from "@/components/inventory/ItemDetailSheet";
-import PurchaseOrderBuilder from "@/components/inventory/PurchaseOrderBuilder";
 import type { InventoryItem } from "@/components/inventory/ItemDetailSheet";
-import type { ReorderEntry } from "@/components/inventory/PurchaseOrderBuilder";
 
 const inventory: InventoryItem[] = [
   { name: "Dolo 650mg", mfr: "Micro Labs", batch: "B102", expiry: "08/2026", hsn: "3004", mrp: 30, stock: 250, sgst: 6, cgst: 6, rack: "A1-03", status: "safe", purchasePrice: 22, supplier: "Micro Labs" },
@@ -24,25 +23,26 @@ const statusStyles: Record<string, string> = {
 };
 
 const InventoryPage = () => {
+  const navigate = useNavigate();
   const [showAdd, setShowAdd] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
-  const [reorderEntries, setReorderEntries] = useState<ReorderEntry[]>([]);
 
-  const handleAddToReorder = (item: InventoryItem) => {
-    if (reorderEntries.some(e => e.item.name === item.name)) return;
+  const handleAddToPO = (item: InventoryItem) => {
+    setSelectedItem(null);
     const suggestedQty = item.stock < 10 ? 100 : item.stock < 50 ? 50 : 30;
-    setReorderEntries(prev => [...prev, { item, qty: suggestedQty }]);
+    navigate("/purchases", {
+      state: {
+        newPOItem: {
+          drug: item.name,
+          qty: suggestedQty,
+          rate: item.purchasePrice || item.mrp,
+          supplier: item.supplier || item.mfr,
+          batch: item.batch,
+          expiry: item.expiry,
+        }
+      }
+    });
   };
-
-  const handleUpdateQty = (itemName: string, qty: number) => {
-    setReorderEntries(prev => prev.map(e => e.item.name === itemName ? { ...e, qty } : e));
-  };
-
-  const handleRemove = (itemName: string) => {
-    setReorderEntries(prev => prev.filter(e => e.item.name !== itemName));
-  };
-
-  const isInReorder = (name: string) => reorderEntries.some(e => e.item.name === name);
 
   return (
     <div className="space-y-6">
@@ -133,14 +133,8 @@ const InventoryPage = () => {
         item={selectedItem}
         open={!!selectedItem}
         onClose={() => setSelectedItem(null)}
-        onAddToReorder={handleAddToReorder}
-        isInReorder={selectedItem ? isInReorder(selectedItem.name) : false}
-      />
-      <PurchaseOrderBuilder
-        entries={reorderEntries}
-        onUpdateQty={handleUpdateQty}
-        onRemove={handleRemove}
-        onClear={() => setReorderEntries([])}
+        onAddToReorder={handleAddToPO}
+        isInReorder={false}
       />
     </div>
   );

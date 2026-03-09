@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Search, Plus, Package, Truck, IndianRupee, Clock,
-  CheckCircle2, XCircle, Eye, Send, MessageCircle, Mail, Copy, Check
+  CheckCircle2, XCircle, Eye, Send, MessageCircle, Mail, Copy, Check, Download, Minus, X
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
@@ -15,9 +16,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import PrintablePurchaseOrder from "@/components/inventory/PrintablePurchaseOrder";
 
 type OrderStatus = "draft" | "ordered" | "delivered" | "cancelled";
 type PaymentStatus = "pending" | "partial" | "paid";
+
+interface POItem { drug: string; qty: number; rate: number; }
 
 interface PurchaseOrder {
   id: string;
@@ -25,7 +29,7 @@ interface PurchaseOrder {
   supplierWhatsapp?: string;
   supplierEmail?: string;
   date: string;
-  items: { drug: string; qty: number; rate: number }[];
+  items: POItem[];
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   totalAmount: number;
@@ -33,9 +37,11 @@ interface PurchaseOrder {
   deliveryDate?: string;
   invoiceNo?: string;
   dueDate?: string;
+  paymentTerms?: string;
+  remarks?: string;
 }
 
-const orders: PurchaseOrder[] = [
+const initialOrders: PurchaseOrder[] = [
   {
     id: "PO-2401", supplier: "MedPharma Distributors", supplierWhatsapp: "919876543210", supplierEmail: "orders@medpharma.in", date: "Mar 4, 2026",
     items: [{ drug: "Paracetamol 500mg", qty: 500, rate: 1.2 }, { drug: "Amoxicillin 250mg", qty: 200, rate: 4.5 }],
@@ -58,6 +64,9 @@ const orders: PurchaseOrder[] = [
   },
 ];
 
+const suppliers = ["MedPharma Distributors", "HealthCare Supplies", "Generic Meds Ltd.", "Micro Labs", "Cipla Ltd", "Dr. Reddy's", "GSK Pharma", "Sun Pharma", "USV Ltd", "Mankind Pharma"];
+const paymentTermOptions = ["Advance", "COD", "7 Days", "15 Days", "30 Days", "45 Days", "60 Days"];
+
 const statusConfig = {
   draft: { label: "Draft", color: "bg-muted text-muted-foreground" },
   ordered: { label: "Ordered", color: "bg-primary/10 text-primary" },
@@ -72,7 +81,9 @@ const paymentConfig = {
 };
 
 const PurchasesPage = () => {
+  const location = useLocation();
   const [search, setSearch] = useState("");
+  const [orders] = useState<PurchaseOrder[]>(initialOrders);
   const [selected, setSelected] = useState<PurchaseOrder | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -80,6 +91,35 @@ const PurchasesPage = () => {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentTarget, setPaymentTarget] = useState<PurchaseOrder | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
+
+  // New PO form state
+  const [poSupplier, setPoSupplier] = useState("");
+  const [poItems, setPoItems] = useState<POItem[]>([{ drug: "", qty: 0, rate: 0 }]);
+  const [poDeliveryDate, setPoDeliveryDate] = useState("");
+  const [poPaymentTerms, setPoPaymentTerms] = useState("30 Days");
+  const [poRemarks, setPoRemarks] = useState("");
+  const [poDueDate, setPoDueDate] = useState("");
+
+  // PDF
+  const printRef = useRef<HTMLDivElement>(null);
+  const [printingPO, setPrintingPO] = useState<PurchaseOrder | null>(null);
+
+  // Handle incoming item from inventory
+  useEffect(() => {
+    const state = location.state as { newPOItem?: { drug: string; qty: number; rate: number; supplier: string; batch: string; expiry: string } } | null;
+    if (state?.newPOItem) {
+      const { drug, qty, rate, supplier } = state.newPOItem;
+      setPoSupplier(supplier);
+      setPoItems([{ drug, qty, rate }]);
+      setPoRemarks("");
+      setPoDeliveryDate("");
+      setPoPaymentTerms("30 Days");
+      setPoDueDate("");
+      setShowAdd(true);
+      // Clear navigation state so it doesn't re-trigger
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const filtered = orders.filter(o => {
     const matchSearch = !search || o.id.toLowerCase().includes(search.toLowerCase()) || o.supplier.toLowerCase().includes(search.toLowerCase());
@@ -116,6 +156,74 @@ const PurchasesPage = () => {
     }
   };
 
+  // PO form helpers
+  const addPOItem = () => setPoItems(prev => [...prev, { drug: "", qty: 0, rate: 0 }]);
+  const updatePOItem = (index: number, field: keyof POItem, value: string | number) => {
+    setPoItems(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+  };
+  const removePOItem = (index: number) => {
+    if (poItems.length <= 1) return;
+    setPoItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const poTotal = poItems.reduce((s, i) => s + i.qty * i.rate, 0);
+
+  const getNewPONumber = () => {
+    const d = new Date();
+    return `PO-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${String(orders.length + 1).padStart(3, '0')}`;
+  };
+
+  const handleCreatePO = () => {
+    const validItems = poItems.filter(i => i.drug.trim() && i.qty > 0);
+    if (!poSupplier || validItems.length === 0) {
+      toast.error("Please fill supplier and at least one item");
+      return;
+    }
+    toast.success(`Purchase Order ${getNewPONumber()} created for ${poSupplier}`);
+    setShowAdd(false);
+    resetPOForm();
+  };
+
+  const resetPOForm = () => {
+    setPoSupplier("");
+    setPoItems([{ drug: "", qty: 0, rate: 0 }]);
+    setPoDeliveryDate("");
+    setPoPaymentTerms("30 Days");
+    setPoRemarks("");
+    setPoDueDate("");
+  };
+
+  const handleDownloadPO = () => {
+    const validItems = poItems.filter(i => i.drug.trim() && i.qty > 0);
+    if (!poSupplier || validItems.length === 0) {
+      toast.error("Please fill supplier and at least one item");
+      return;
+    }
+    const fakePO: PurchaseOrder = {
+      id: getNewPONumber(), supplier: poSupplier, date: new Date().toLocaleDateString(),
+      items: validItems, status: "draft", paymentStatus: "pending",
+      totalAmount: poTotal, paidAmount: 0, deliveryDate: poDeliveryDate,
+      paymentTerms: poPaymentTerms, remarks: poRemarks,
+    };
+    setPrintingPO(fakePO);
+    setTimeout(() => {
+      if (printRef.current) {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(`
+            <html><head><title>Purchase Order - ${fakePO.id}</title>
+            <style>@media print { body { margin: 0; } @page { size: A4; margin: 0; } }</style>
+            </head><body>${printRef.current.innerHTML}</body></html>
+          `);
+          printWindow.document.close();
+          printWindow.focus();
+          setTimeout(() => { printWindow.print(); printWindow.close(); }, 300);
+        }
+      }
+      setPrintingPO(null);
+    }, 100);
+  };
+
   return (
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -128,7 +236,7 @@ const PurchasesPage = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search PO or supplier..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
           </div>
-          <Button size="sm" onClick={() => setShowAdd(true)}><Plus className="h-4 w-4 mr-1" />New PO</Button>
+          <Button size="sm" onClick={() => { resetPOForm(); setShowAdd(true); }}><Plus className="h-4 w-4 mr-1" />New PO</Button>
         </div>
       </div>
 
@@ -314,29 +422,177 @@ const PurchasesPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Create PO Dialog */}
-      <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent className="max-w-md">
+      {/* Create / Edit PO Dialog — Full featured */}
+      <Dialog open={showAdd} onOpenChange={v => { if (!v) { setShowAdd(false); resetPOForm(); } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>New Purchase Order</DialogTitle>
-            <DialogDescription>Create a purchase order for supplier</DialogDescription>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5 text-primary" />
+              New Purchase Order
+            </DialogTitle>
+            <DialogDescription>
+              {poSupplier ? `Creating PO for ${poSupplier}` : "Fill supplier and item details to create a purchase order"}
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5"><Label className="text-xs">Supplier *</Label><Input className="h-9" placeholder="Select supplier" /></div>
-            <div className="space-y-1.5"><Label className="text-xs">Drug Name</Label><Input className="h-9" placeholder="Search medicine..." /></div>
+
+          <div className="space-y-5">
+            {/* Supplier & Meta */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><Label className="text-xs">Quantity</Label><Input type="number" className="h-9" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Rate (₹)</Label><Input type="number" className="h-9" /></div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Supplier *</Label>
+                <Select value={poSupplier} onValueChange={setPoSupplier}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Select supplier" /></SelectTrigger>
+                  <SelectContent>
+                    {suppliers.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">PO Number</Label>
+                <Input value={getNewPONumber()} disabled className="h-9 bg-muted font-mono" />
+              </div>
             </div>
-            <div className="space-y-1.5"><Label className="text-xs">Due Date</Label><Input type="date" className="h-9" /></div>
-            <Button variant="outline" size="sm" className="w-full"><Plus className="h-3.5 w-3.5 mr-1" />Add Another Item</Button>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Expected Delivery</Label>
+                <Input type="date" value={poDeliveryDate} onChange={e => setPoDeliveryDate(e.target.value)} className="h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Payment Terms</Label>
+                <Select value={poPaymentTerms} onValueChange={setPoPaymentTerms}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {paymentTermOptions.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Due Date</Label>
+                <Input type="date" value={poDueDate} onChange={e => setPoDueDate(e.target.value)} className="h-9" />
+              </div>
+            </div>
+
+            {/* Line Items */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">Line Items</Label>
+                <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={addPOItem}>
+                  <Plus className="h-3 w-3" /> Add Item
+                </Button>
+              </div>
+
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-secondary/50 border-b border-border">
+                      <th className="px-3 py-2 text-left text-[10px] font-semibold text-muted-foreground uppercase">Item Name</th>
+                      <th className="px-3 py-2 text-center text-[10px] font-semibold text-muted-foreground uppercase w-24">Qty</th>
+                      <th className="px-3 py-2 text-center text-[10px] font-semibold text-muted-foreground uppercase w-28">Rate (₹)</th>
+                      <th className="px-3 py-2 text-right text-[10px] font-semibold text-muted-foreground uppercase w-24">Amount</th>
+                      <th className="px-2 py-2 w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {poItems.map((item, i) => (
+                      <tr key={i} className="border-b border-border/50">
+                        <td className="px-3 py-2">
+                          <Input
+                            placeholder="e.g. Paracetamol 500mg"
+                            value={item.drug}
+                            onChange={e => updatePOItem(i, "drug", e.target.value)}
+                            className="h-8 text-xs border-0 bg-transparent px-0 focus-visible:ring-0"
+                          />
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => updatePOItem(i, "qty", Math.max(0, item.qty - 10))} className="flex h-6 w-6 items-center justify-center rounded border border-border hover:bg-secondary"><Minus className="h-3 w-3" /></button>
+                            <Input
+                              type="number" min={0} value={item.qty}
+                              onChange={e => updatePOItem(i, "qty", parseInt(e.target.value) || 0)}
+                              className="h-8 w-14 text-center text-xs px-1"
+                            />
+                            <button onClick={() => updatePOItem(i, "qty", item.qty + 10)} className="flex h-6 w-6 items-center justify-center rounded border border-border hover:bg-secondary"><Plus className="h-3 w-3" /></button>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <Input
+                            type="number" min={0} step="0.01" value={item.rate}
+                            onChange={e => updatePOItem(i, "rate", parseFloat(e.target.value) || 0)}
+                            className="h-8 text-xs text-center"
+                          />
+                        </td>
+                        <td className="px-3 py-2 text-right text-xs font-semibold text-card-foreground">
+                          ₹{(item.qty * item.rate).toFixed(2)}
+                        </td>
+                        <td className="px-2 py-2">
+                          {poItems.length > 1 && (
+                            <button onClick={() => removePOItem(i)} className="p-1 rounded hover:bg-destructive/10">
+                              <X className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {/* Total row */}
+                <div className="flex items-center justify-between px-3 py-2.5 bg-secondary/30 border-t border-border">
+                  <p className="text-xs text-muted-foreground">{poItems.filter(i => i.drug.trim()).length} item(s)</p>
+                  <p className="text-sm font-bold text-card-foreground">Total: ₹{poTotal.toFixed(2)}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Remarks */}
+            <div className="space-y-1.5">
+              <Label className="text-xs">Remarks / Notes</Label>
+              <Textarea
+                placeholder="e.g. Urgent order, check batch freshness, deliver before noon..."
+                value={poRemarks}
+                onChange={e => setPoRemarks(e.target.value)}
+                className="text-xs min-h-[48px] resize-none"
+                rows={2}
+              />
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button size="sm" onClick={() => { setShowAdd(false); toast.success("PO created"); }}>Create PO</Button>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={handleDownloadPO}>
+              <Download className="h-3.5 w-3.5" /> Download PDF
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => { setShowAdd(false); resetPOForm(); }}>Cancel</Button>
+              <Button size="sm" onClick={handleCreatePO} className="gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5" /> Create PO
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Hidden printable PO */}
+      {printingPO && (
+        <div className="fixed -left-[9999px] top-0">
+          <PrintablePurchaseOrder
+            ref={printRef}
+            poNumber={printingPO.id}
+            poDate={printingPO.date}
+            supplier={printingPO.supplier}
+            items={printingPO.items.map(i => ({
+              item: { name: i.drug, mfr: "", batch: "", expiry: "", hsn: "3004", mrp: i.rate, stock: 0, sgst: 6, cgst: 6, rack: "", status: "safe", purchasePrice: i.rate },
+              qty: i.qty
+            }))}
+            deliveryDate={printingPO.deliveryDate || ""}
+            paymentTerms={printingPO.paymentTerms || "30 Days"}
+            remarks={printingPO.remarks || ""}
+            pharmacyName="MedPlus Pharmacy"
+            pharmacyAddress="123 Health Street, Chennai - 600001"
+            pharmacyPhone="+91 98765 43210"
+            pharmacyGSTIN="33AABCT1234F1ZH"
+          />
+        </div>
+      )}
     </div>
   );
 };

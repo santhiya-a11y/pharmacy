@@ -8,6 +8,7 @@ import {
   IndianRupee, ShoppingCart, Package, Filter, AlertTriangle,
   Clock, Zap, ArrowUpRight, Eye
 } from "lucide-react";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { InsightCard } from "@/components/reports/InsightCard";
 import { AIReorderPanel } from "@/components/reports/AIReorderPanel";
 

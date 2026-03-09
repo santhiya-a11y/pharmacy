@@ -272,13 +272,14 @@ const SettingsPage = () => {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {bagConfigs.map(bag => (
                     <div key={bag.id} className="rounded-xl border border-border p-3 space-y-2 relative group/card">
-                      <button
-                        onClick={() => handleDeleteBag(bag.id)}
-                        className="absolute top-1.5 right-1.5 z-10 bg-destructive/90 rounded-full p-1 opacity-0 group-hover/card:opacity-100 transition-opacity"
-                        title="Delete bag"
-                      >
-                        <Trash2 className="h-3 w-3 text-destructive-foreground" />
-                      </button>
+                      <div className="absolute top-1.5 right-1.5 z-10 flex gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity">
+                        <button onClick={() => handleEditBag(bag)} className="bg-muted/90 rounded-full p-1 hover:bg-accent" title="Edit bag">
+                          <Pencil className="h-3 w-3 text-foreground" />
+                        </button>
+                        <button onClick={() => handleDeleteBag(bag.id)} className="bg-destructive/90 rounded-full p-1" title="Delete bag">
+                          <Trash2 className="h-3 w-3 text-destructive-foreground" />
+                        </button>
+                      </div>
                       <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-muted/50 flex items-center justify-center group">
                         {bag.imageUrl ? (
                           <>

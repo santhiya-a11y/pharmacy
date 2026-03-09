@@ -361,6 +361,53 @@ const SettingsPage = () => {
                     </div>
                   </DialogContent>
                 </Dialog>
+
+                {/* Edit Bag Dialog */}
+                <Dialog open={!!editingBag} onOpenChange={open => !open && setEditingBag(null)}>
+                  <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                      <DialogTitle>Edit Bag</DialogTitle>
+                      <DialogDescription>Update bag details</DialogDescription>
+                    </DialogHeader>
+                    {editingBag && (
+                      <div className="space-y-3 pt-2">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Bag Name</Label>
+                          <Input className="h-9" value={editingBag.name} onChange={e => setEditingBag(p => p ? { ...p, name: e.target.value } : p)} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Size</Label>
+                            <Select value={editingBag.size} onValueChange={v => setEditingBag(p => p ? { ...p, size: v } : p)}>
+                              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Small">Small</SelectItem>
+                                <SelectItem value="Medium">Medium</SelectItem>
+                                <SelectItem value="Large">Large</SelectItem>
+                                <SelectItem value="Standard">Standard</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Price (₹)</Label>
+                            <Input type="number" min={0} className="h-9" value={editingBag.price} onChange={e => setEditingBag(p => p ? { ...p, price: parseFloat(e.target.value) || 0 } : p)} />
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Icon</Label>
+                          <div className="flex gap-2">
+                            {["🛍️", "📦", "🏷️", "♻️", "🎁", "👜"].map(icon => (
+                              <button key={icon} onClick={() => setEditingBag(p => p ? { ...p, icon } : p)} className={`text-xl p-1.5 rounded-lg border-2 transition-colors ${editingBag.icon === icon ? "border-primary bg-primary/5" : "border-transparent hover:border-border"}`}>{icon}</button>
+                            ))}
+                          </div>
+                        </div>
+                        <Button className="w-full" size="sm" onClick={handleSaveEdit} disabled={!editingBag.name.trim()}>
+                          <Save className="h-4 w-4 mr-1" />Save Changes
+                        </Button>
+                      </div>
+                    )}
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
           )}

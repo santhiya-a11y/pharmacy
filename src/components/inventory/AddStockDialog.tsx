@@ -11,87 +11,56 @@ interface AddStockDialogProps {
 }
 
 const categories = [
-  { value: "tablet", label: "Tablet / Capsule" },
-  { value: "syrup", label: "Syrup / Liquid" },
-  { value: "injection", label: "Injection" },
-  { value: "ointment", label: "Ointment / Cream / Gel" },
-  { value: "drops", label: "Drops (Eye/Ear/Nasal)" },
-  { value: "inhaler", label: "Inhaler" },
+  { value: "medicine", label: "Medicine" },
   { value: "surgical", label: "Surgical / Medical Devices" },
-  { value: "hygiene", label: "Hygiene & Personal Care" },
-  { value: "otc", label: "OTC / General Products" },
-  { value: "baby", label: "Baby Care" },
   { value: "nutrition", label: "Nutrition / Supplements" },
+  { value: "baby", label: "Baby Care" },
+  { value: "hygiene", label: "Personal Care / Hygiene" },
+  { value: "fmcg", label: "General FMCG" },
 ];
 
 const schedules = ["OTC", "H", "H1", "X"];
 
-// Category-specific fields config
 const categoryFields: Record<string, { label: string; placeholder: string; field: string; type?: string }[]> = {
-  tablet: [
+  medicine: [
     { label: "Composition / Salt", placeholder: "e.g. Paracetamol 500mg", field: "composition" },
-    { label: "Dosage Form", placeholder: "Tablet / Capsule / Strip", field: "dosageForm" },
-    { label: "Pack Size (units per strip)", placeholder: "e.g. 10", field: "packSize", type: "number" },
+    { label: "Dosage Form", placeholder: "e.g. Tablet, Syrup, Injection, Drops", field: "dosageForm" },
+    { label: "Pack Size", placeholder: "e.g. 10 tabs, 100ml", field: "packSize" },
     { label: "Schedule", placeholder: "", field: "schedule" },
-    { label: "Storage Condition", placeholder: "e.g. Below 25°C", field: "storage" },
-  ],
-  syrup: [
-    { label: "Composition / Salt", placeholder: "e.g. Ambroxol HCl 30mg/5ml", field: "composition" },
-    { label: "Volume (ml)", placeholder: "e.g. 100", field: "volume", type: "number" },
-    { label: "Flavour", placeholder: "e.g. Orange", field: "flavour" },
-    { label: "Schedule", placeholder: "", field: "schedule" },
-    { label: "Storage Condition", placeholder: "e.g. Store in cool place", field: "storage" },
-  ],
-  injection: [
-    { label: "Composition / Salt", placeholder: "e.g. Diclofenac Sodium 75mg", field: "composition" },
-    { label: "Volume (ml)", placeholder: "e.g. 2", field: "volume", type: "number" },
-    { label: "Route", placeholder: "IM / IV / SC", field: "route" },
-    { label: "Schedule", placeholder: "", field: "schedule" },
-    { label: "Cold Chain Required", placeholder: "Yes / No", field: "coldChain" },
-  ],
-  ointment: [
-    { label: "Composition", placeholder: "e.g. Betamethasone 0.05%", field: "composition" },
-    { label: "Form", placeholder: "Ointment / Cream / Gel", field: "dosageForm" },
-    { label: "Weight (gm)", placeholder: "e.g. 15", field: "weight", type: "number" },
-    { label: "Schedule", placeholder: "", field: "schedule" },
-  ],
-  drops: [
-    { label: "Composition", placeholder: "e.g. Ofloxacin 0.3%", field: "composition" },
-    { label: "Type", placeholder: "Eye / Ear / Nasal", field: "dosageForm" },
-    { label: "Volume (ml)", placeholder: "e.g. 10", field: "volume", type: "number" },
-    { label: "Schedule", placeholder: "", field: "schedule" },
-  ],
-  inhaler: [
-    { label: "Composition", placeholder: "e.g. Salbutamol 100mcg", field: "composition" },
-    { label: "Type", placeholder: "MDI / DPI / Nebulizer", field: "dosageForm" },
-    { label: "Doses per unit", placeholder: "e.g. 200", field: "packSize", type: "number" },
-    { label: "Schedule", placeholder: "", field: "schedule" },
+    { label: "Storage Condition", placeholder: "e.g. Below 25°C, Refrigerate", field: "storage" },
+    { label: "Route", placeholder: "e.g. Oral, Topical, IM/IV", field: "route" },
   ],
   surgical: [
-    { label: "Product Type", placeholder: "e.g. Cotton Roll, Bandage, Gloves", field: "productType" },
-    { label: "Size", placeholder: "e.g. 500gm, Large, 6x6 inch", field: "size" },
-    { label: "Material", placeholder: "e.g. Absorbent Cotton", field: "material" },
+    { label: "Product Type", placeholder: "e.g. Cotton Roll, Bandage, Gloves, Syringe", field: "productType" },
+    { label: "Size / Dimension", placeholder: "e.g. Large, 6x6 inch, 5ml", field: "size" },
+    { label: "Material", placeholder: "e.g. Absorbent Cotton, Latex", field: "material" },
     { label: "Sterile", placeholder: "Yes / No", field: "sterile" },
-  ],
-  hygiene: [
-    { label: "Product Type", placeholder: "e.g. Sanitary Pad, Hand Sanitizer", field: "productType" },
-    { label: "Size / Variant", placeholder: "e.g. XL, 200ml", field: "size" },
-    { label: "Pack Count", placeholder: "e.g. 8 pads", field: "packSize", type: "number" },
-  ],
-  otc: [
-    { label: "Product Type", placeholder: "e.g. Pain Balm, Cough Drop", field: "productType" },
-    { label: "Size / Weight", placeholder: "e.g. 50gm, 20 lozenges", field: "size" },
-  ],
-  baby: [
-    { label: "Product Type", placeholder: "e.g. Gripe Water, Diaper, Baby Oil", field: "productType" },
-    { label: "Size / Variant", placeholder: "e.g. 150ml, Small (S)", field: "size" },
-    { label: "Age Group", placeholder: "e.g. 0-6 months", field: "ageGroup" },
+    { label: "Pack Count", placeholder: "e.g. 100 pcs", field: "packSize" },
   ],
   nutrition: [
-    { label: "Product Type", placeholder: "e.g. Protein Powder, Multivitamin", field: "productType" },
-    { label: "Flavour", placeholder: "e.g. Chocolate", field: "flavour" },
+    { label: "Product Type", placeholder: "e.g. Protein Powder, Multivitamin, Health Drink", field: "productType" },
+    { label: "Flavour", placeholder: "e.g. Chocolate, Vanilla", field: "flavour" },
     { label: "Weight / Volume", placeholder: "e.g. 400gm, 200ml", field: "size" },
-    { label: "Veg / Non-Veg", placeholder: "", field: "vegStatus" },
+    { label: "Veg / Non-Veg", placeholder: "Veg / Non-Veg", field: "vegStatus" },
+    { label: "Pack Size", placeholder: "e.g. 60 capsules, 1kg", field: "packSize" },
+  ],
+  baby: [
+    { label: "Product Type", placeholder: "e.g. Gripe Water, Diaper, Baby Oil, Cerelac", field: "productType" },
+    { label: "Size / Variant", placeholder: "e.g. 150ml, Small (S), Stage 1", field: "size" },
+    { label: "Age Group", placeholder: "e.g. 0-6 months, 1-2 years", field: "ageGroup" },
+    { label: "Pack Count", placeholder: "e.g. 30 diapers", field: "packSize" },
+  ],
+  hygiene: [
+    { label: "Product Type", placeholder: "e.g. Sanitary Pad, Hand Wash, Shampoo", field: "productType" },
+    { label: "Size / Variant", placeholder: "e.g. XL, 200ml, 100gm", field: "size" },
+    { label: "Pack Count", placeholder: "e.g. 8 pads, 3 pack", field: "packSize" },
+  ],
+  fmcg: [
+    { label: "Product Type", placeholder: "e.g. Biscuit, Juice, Snack, Detergent", field: "productType" },
+    { label: "Brand", placeholder: "e.g. Parle, Surf Excel", field: "brand" },
+    { label: "Size / Weight", placeholder: "e.g. 200gm, 1L, 500ml", field: "size" },
+    { label: "Pack Count", placeholder: "e.g. 12 units", field: "packSize" },
+    { label: "Veg / Non-Veg", placeholder: "Veg / Non-Veg", field: "vegStatus" },
   ],
 };
 

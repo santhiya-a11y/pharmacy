@@ -279,6 +279,7 @@ const POSBilling = () => {
     setSelectedPayment(null);
     setSelectedCustomer(null);
     setCustomerName("");
+    setCustomerPhone("");
     setIsSplitPayment(false);
     setSplitPayments([]);
     setRedeemPoints(0);

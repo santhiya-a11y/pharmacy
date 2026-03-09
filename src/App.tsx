@@ -11,7 +11,7 @@ import MedicinesPage from "./pages/MedicinesPage";
 import InventoryPage from "./pages/InventoryPage";
 import ReportsPage from "./pages/ReportsPage";
 import StaffPage from "./pages/StaffPage";
-import PrescriptionsPage from "./pages/PrescriptionsPage";
+
 import CustomersPage from "./pages/CustomersPage";
 import PurchasesPage from "./pages/PurchasesPage";
 import SuppliersPage from "./pages/SuppliersPage";

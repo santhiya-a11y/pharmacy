@@ -153,6 +153,8 @@ const SettingsPage = () => {
             </Card>
           )}
 
+          {activeTab === "invoice" && <InvoiceSettingsPanel />}
+
           {activeTab === "notifications" && (
             <Card>
               <CardHeader>

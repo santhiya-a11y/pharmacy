@@ -34,6 +34,7 @@ interface CartItem {
   cgst: number;
   discPct: number;
   dosageLabel?: string;
+  frequency?: FrequencyData | null;
   isBag?: boolean;
   requiresRx?: boolean;
   rxVerified?: boolean;

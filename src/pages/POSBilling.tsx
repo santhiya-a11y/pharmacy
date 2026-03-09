@@ -74,6 +74,14 @@ const paymentMethods = [
 
 const splitMethods = ["Cash", "UPI", "Card"];
 
+const SAMPLE_CUSTOMERS_INLINE = [
+  { id: 1, name: "Rajesh Kumar", phone: "9876543210", address: "MG Road, Andheri", type: "regular" as const, lastVisit: "2 days ago" },
+  { id: 2, name: "Priya Sharma", phone: "9876543211", address: "Hill Road, Bandra", type: "regular" as const, lastVisit: "Today" },
+  { id: 3, name: "Dr. Anil Mehta", phone: "9876543212", address: "Link Road, Goregaon", type: "regular" as const, lastVisit: "1 week ago" },
+  { id: 4, name: "Sunita Patil", phone: "9876543213", address: "Station Road, Dadar", type: "regular" as const, lastVisit: "3 days ago" },
+  { id: 5, name: "Mohammed Ali", phone: "9876543214", address: "JM Road, Pune", type: "regular" as const, lastVisit: "Yesterday" },
+];
+
 const POSBilling = () => {
   const navigate = useNavigate();
   const searchRef = useRef<HTMLInputElement>(null);

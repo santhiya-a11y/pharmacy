@@ -2,14 +2,18 @@ import { useState } from "react";
 import { Search, Filter, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import AddStockDialog from "@/components/inventory/AddStockDialog";
+import ItemDetailSheet from "@/components/inventory/ItemDetailSheet";
+import ReorderCart from "@/components/inventory/ReorderCart";
+import type { InventoryItem } from "@/components/inventory/ItemDetailSheet";
+import type { ReorderEntry } from "@/components/inventory/ReorderCart";
 
-const inventory = [
-  { name: "Dolo 650mg", mfr: "Micro Labs", batch: "B102", expiry: "08/2026", hsn: "3004", mrp: 30, stock: 250, sgst: 6, cgst: 6, rack: "A1-03", status: "safe" },
-  { name: "Azithromycin 500mg", mfr: "Cipla Ltd", batch: "A45", expiry: "12/2026", hsn: "3004", mrp: 100, stock: 45, sgst: 6, cgst: 6, rack: "B2-01", status: "safe" },
-  { name: "Cetirizine 10mg", mfr: "Dr. Reddy's", batch: "C78", expiry: "04/2026", hsn: "3004", mrp: 30, stock: 180, sgst: 6, cgst: 6, rack: "A2-05", status: "expiring" },
-  { name: "Amoxicillin 250mg", mfr: "GSK Pharma", batch: "AM33", expiry: "05/2026", hsn: "3004", mrp: 50, stock: 8, sgst: 6, cgst: 6, rack: "C1-02", status: "low" },
-  { name: "Metformin 500mg", mfr: "USV Ltd", batch: "M90", expiry: "11/2026", hsn: "3004", mrp: 25, stock: 300, sgst: 2.5, cgst: 2.5, rack: "A3-01", status: "safe" },
-  { name: "Pantoprazole 40mg", mfr: "Sun Pharma", batch: "P12", expiry: "06/2026", hsn: "3004", mrp: 60, stock: 92, sgst: 6, cgst: 6, rack: "B1-04", status: "expiring" },
+const inventory: InventoryItem[] = [
+  { name: "Dolo 650mg", mfr: "Micro Labs", batch: "B102", expiry: "08/2026", hsn: "3004", mrp: 30, stock: 250, sgst: 6, cgst: 6, rack: "A1-03", status: "safe", purchasePrice: 22, supplier: "Micro Labs" },
+  { name: "Azithromycin 500mg", mfr: "Cipla Ltd", batch: "A45", expiry: "12/2026", hsn: "3004", mrp: 100, stock: 45, sgst: 6, cgst: 6, rack: "B2-01", status: "safe", purchasePrice: 68, supplier: "Cipla Ltd" },
+  { name: "Cetirizine 10mg", mfr: "Dr. Reddy's", batch: "C78", expiry: "04/2026", hsn: "3004", mrp: 30, stock: 180, sgst: 6, cgst: 6, rack: "A2-05", status: "expiring", purchasePrice: 18, supplier: "Dr. Reddy's" },
+  { name: "Amoxicillin 250mg", mfr: "GSK Pharma", batch: "AM33", expiry: "05/2026", hsn: "3004", mrp: 50, stock: 8, sgst: 6, cgst: 6, rack: "C1-02", status: "low", purchasePrice: 32, supplier: "GSK Pharma" },
+  { name: "Metformin 500mg", mfr: "USV Ltd", batch: "M90", expiry: "11/2026", hsn: "3004", mrp: 25, stock: 300, sgst: 2.5, cgst: 2.5, rack: "A3-01", status: "safe", purchasePrice: 15, supplier: "USV Ltd" },
+  { name: "Pantoprazole 40mg", mfr: "Sun Pharma", batch: "P12", expiry: "06/2026", hsn: "3004", mrp: 60, stock: 92, sgst: 6, cgst: 6, rack: "B1-04", status: "expiring", purchasePrice: 38, supplier: "Sun Pharma" },
 ];
 
 const statusStyles: Record<string, string> = {
@@ -21,6 +25,25 @@ const statusStyles: Record<string, string> = {
 
 const InventoryPage = () => {
   const [showAdd, setShowAdd] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [reorderEntries, setReorderEntries] = useState<ReorderEntry[]>([]);
+
+  const handleAddToReorder = (item: InventoryItem) => {
+    if (reorderEntries.some(e => e.item.name === item.name)) return;
+    const suggestedQty = item.stock < 10 ? 100 : item.stock < 50 ? 50 : 30;
+    setReorderEntries(prev => [...prev, { item, qty: suggestedQty }]);
+  };
+
+  const handleUpdateQty = (itemName: string, qty: number) => {
+    setReorderEntries(prev => prev.map(e => e.item.name === itemName ? { ...e, qty } : e));
+  };
+
+  const handleRemove = (itemName: string) => {
+    setReorderEntries(prev => prev.filter(e => e.item.name !== itemName));
+  };
+
+  const isInReorder = (name: string) => reorderEntries.some(e => e.item.name === name);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -78,7 +101,11 @@ const InventoryPage = () => {
           </thead>
           <tbody>
             {inventory.map((item, i) => (
-              <tr key={i} className="border-b border-border/50 hover:bg-accent/30 transition-colors">
+              <tr
+                key={i}
+                onClick={() => setSelectedItem(item)}
+                className="border-b border-border/50 hover:bg-accent/30 transition-colors cursor-pointer"
+              >
                 <td className="px-4 py-3 text-muted-foreground">{i + 1}</td>
                 <td className="px-4 py-3 font-medium text-card-foreground">{item.name}</td>
                 <td className="px-4 py-3 text-muted-foreground">{item.mfr}</td>
@@ -100,7 +127,21 @@ const InventoryPage = () => {
           </tbody>
         </table>
       </div>
+
       <AddStockDialog open={showAdd} onClose={() => setShowAdd(false)} />
+      <ItemDetailSheet
+        item={selectedItem}
+        open={!!selectedItem}
+        onClose={() => setSelectedItem(null)}
+        onAddToReorder={handleAddToReorder}
+        isInReorder={selectedItem ? isInReorder(selectedItem.name) : false}
+      />
+      <ReorderCart
+        entries={reorderEntries}
+        onUpdateQty={handleUpdateQty}
+        onRemove={handleRemove}
+        onClear={() => setReorderEntries([])}
+      />
     </div>
   );
 };

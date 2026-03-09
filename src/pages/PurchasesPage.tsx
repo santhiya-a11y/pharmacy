@@ -300,7 +300,7 @@ const PurchasesPage = () => {
           </TableHeader>
           <TableBody>
             {filtered.map(order => (
-              <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50">
+              <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelected(order)}>
                 <TableCell className="font-semibold text-primary text-sm">{order.id}</TableCell>
                 <TableCell className="text-sm">{order.supplier}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{order.date}</TableCell>
@@ -319,8 +319,7 @@ const PurchasesPage = () => {
                 </TableCell>
                 <TableCell className="text-sm text-right text-muted-foreground">{order.dueDate || "—"}</TableCell>
                 <TableCell className="text-right">
-                  <div className="flex items-center gap-1 justify-end">
-                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setSelected(order)}><Eye className="h-3.5 w-3.5" /></Button>
+                  <div className="flex items-center gap-1 justify-end" onClick={e => e.stopPropagation()}>
                     {order.status !== "cancelled" && order.paymentStatus !== "paid" && (
                       <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openPayment(order)}>Pay</Button>
                     )}

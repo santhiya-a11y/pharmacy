@@ -224,7 +224,26 @@ const PurchasesPage = () => {
     }, 100);
   };
 
-  return (
+  const handleDownloadExistingPO = (order: PurchaseOrder) => {
+    setPrintingPO(order);
+    setTimeout(() => {
+      if (printRef.current) {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(`
+            <html><head><title>Purchase Order - ${order.id}</title>
+            <style>@media print { body { margin: 0; } @page { size: A4; margin: 0; } }</style>
+            </head><body>${printRef.current.innerHTML}</body></html>
+          `);
+          printWindow.document.close();
+          printWindow.focus();
+          setTimeout(() => { printWindow.print(); printWindow.close(); }, 300);
+        }
+      }
+      setPrintingPO(null);
+    }, 100);
+  };
+
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>

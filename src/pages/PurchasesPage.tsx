@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Search, Plus, Package, Truck, IndianRupee, Clock, ClipboardList,
-  CheckCircle2, XCircle, Eye, Send, MessageCircle, Mail, Copy, Check, Download, Minus, X
+  CheckCircle2, XCircle, Eye, Send, MessageCircle, Mail, Copy, Check, Download, Minus, X,
+  AlertTriangle
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
@@ -15,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import PrintablePurchaseOrder from "@/components/inventory/PrintablePurchaseOrder";
 
@@ -67,6 +69,24 @@ const initialOrders: PurchaseOrder[] = [
 const suppliers = ["MedPharma Distributors", "HealthCare Supplies", "Generic Meds Ltd.", "Micro Labs", "Cipla Ltd", "Dr. Reddy's", "GSK Pharma", "Sun Pharma", "USV Ltd", "Mankind Pharma"];
 const paymentTermOptions = ["Advance", "COD", "7 Days", "15 Days", "30 Days", "45 Days", "60 Days"];
 
+// Inventory data with supplier mapping for expiry suggestions
+interface InventoryRef {
+  name: string; batch: string; expiry: string; stock: number; purchasePrice: number; supplier: string; status: string;
+}
+const inventoryData: InventoryRef[] = [
+  { name: "Dolo 650mg", batch: "B102", expiry: "08/2026", stock: 250, purchasePrice: 22, supplier: "Micro Labs", status: "safe" },
+  { name: "Azithromycin 500mg", batch: "A45", expiry: "12/2026", stock: 45, purchasePrice: 68, supplier: "Cipla Ltd", status: "safe" },
+  { name: "Cetirizine 10mg", batch: "C78", expiry: "04/2026", stock: 180, purchasePrice: 18, supplier: "Dr. Reddy's", status: "expiring" },
+  { name: "Amoxicillin 250mg", batch: "AM33", expiry: "05/2026", stock: 8, purchasePrice: 32, supplier: "GSK Pharma", status: "low" },
+  { name: "Metformin 500mg", batch: "M90", expiry: "11/2026", stock: 300, purchasePrice: 15, supplier: "USV Ltd", status: "safe" },
+  { name: "Pantoprazole 40mg", batch: "P12", expiry: "06/2026", stock: 92, purchasePrice: 38, supplier: "Sun Pharma", status: "expiring" },
+  { name: "Paracetamol 500mg", batch: "P201", expiry: "05/2026", stock: 120, purchasePrice: 1.2, supplier: "MedPharma Distributors", status: "expiring" },
+  { name: "Omeprazole 20mg", batch: "O55", expiry: "04/2026", stock: 60, purchasePrice: 12, supplier: "MedPharma Distributors", status: "expiring" },
+  { name: "Insulin Glargine", batch: "IG10", expiry: "06/2026", stock: 10, purchasePrice: 450, supplier: "HealthCare Supplies", status: "expiring" },
+  { name: "Atorvastatin 10mg", batch: "AT22", expiry: "05/2026", stock: 200, purchasePrice: 2.1, supplier: "Generic Meds Ltd.", status: "expiring" },
+  { name: "Losartan 50mg", batch: "L44", expiry: "07/2026", stock: 75, purchasePrice: 8, supplier: "Generic Meds Ltd.", status: "expiring" },
+];
+
 const statusConfig = {
   draft: { label: "Draft", color: "bg-muted text-muted-foreground" },
   ordered: { label: "Ordered", color: "bg-primary/10 text-primary" },
@@ -99,6 +119,12 @@ const PurchasesPage = () => {
   const [poPaymentTerms, setPoPaymentTerms] = useState("30 Days");
   const [poRemarks, setPoRemarks] = useState("");
   const [poDueDate, setPoDueDate] = useState("");
+
+  // Expiring/low stock items filtered by selected supplier
+  const supplierExpiringItems = useMemo(() => {
+    if (!poSupplier) return [];
+    return inventoryData.filter(item => item.supplier === poSupplier && (item.status === "expiring" || item.status === "low"));
+  }, [poSupplier]);
 
   // PDF
   const printRef = useRef<HTMLDivElement>(null);
@@ -586,6 +612,54 @@ const PurchasesPage = () => {
                 <Input type="date" value={poDueDate} onChange={e => setPoDueDate(e.target.value)} className="h-9" />
               </div>
             </div>
+
+            {/* Expiring Items from this Supplier */}
+            {poSupplier && supplierExpiringItems.length > 0 && (
+              <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-warning" />
+                  <p className="text-xs font-semibold text-warning">Expiring / Low Stock Items from {poSupplier}</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground">These items from this supplier are expiring soon or running low. Select to add them to this PO.</p>
+                <div className="space-y-1">
+                  {supplierExpiringItems.map((item, idx) => {
+                    const alreadyInPO = poItems.some(p => p.drug === item.name);
+                    return (
+                      <div key={idx} className="flex items-center gap-3 rounded-md border border-border bg-background p-2">
+                        <Checkbox
+                          checked={alreadyInPO}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              const suggestedQty = item.stock < 10 ? 100 : item.stock < 50 ? 50 : 30;
+                              setPoItems(prev => {
+                                const cleaned = prev.filter(p => p.drug.trim() !== "");
+                                return [...cleaned, { drug: item.name, qty: suggestedQty, rate: item.purchasePrice }];
+                              });
+                            } else {
+                              setPoItems(prev => {
+                                const filtered = prev.filter(p => p.drug !== item.name);
+                                return filtered.length === 0 ? [{ drug: "", qty: 0, rate: 0 }] : filtered;
+                              });
+                            }
+                          }}
+                          className="h-4 w-4"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-card-foreground truncate">{item.name}</p>
+                          <p className="text-[10px] text-muted-foreground">Batch: {item.batch} · Exp: {item.expiry} · Stock: {item.stock}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <Badge className={`text-[9px] ${item.status === "low" ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}`}>
+                            {item.status === "low" ? "Low Stock" : "Expiring"}
+                          </Badge>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">₹{item.purchasePrice}/unit</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Line Items */}
             <div className="space-y-2">

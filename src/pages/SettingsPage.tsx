@@ -7,14 +7,16 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Settings, Building2, Receipt, Bell, Shield, Printer,
-  Globe, Database, Users, Save, ShoppingBag, Upload, X, Image
+  Globe, Database, Users, Save, ShoppingBag, Upload, X, Image, FileText
 } from "lucide-react";
+import { InvoiceSettingsPanel } from "@/components/settings/InvoiceSettings";
 
-type SettingsTab = "store" | "billing" | "notifications" | "security" | "printing" | "bags" | "integrations";
+type SettingsTab = "store" | "billing" | "invoice" | "notifications" | "security" | "printing" | "bags" | "integrations";
 
 const tabs: { key: SettingsTab; label: string; icon: React.ElementType }[] = [
   { key: "store", label: "Store Details", icon: Building2 },
   { key: "billing", label: "Billing & GST", icon: Receipt },
+  { key: "invoice", label: "Invoice Format", icon: FileText },
   { key: "notifications", label: "Notifications", icon: Bell },
   { key: "security", label: "Security", icon: Shield },
   { key: "printing", label: "Print Templates", icon: Printer },
@@ -150,6 +152,8 @@ const SettingsPage = () => {
               </CardContent>
             </Card>
           )}
+
+          {activeTab === "invoice" && <InvoiceSettingsPanel />}
 
           {activeTab === "notifications" && (
             <Card>

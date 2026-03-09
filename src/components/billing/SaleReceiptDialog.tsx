@@ -1,7 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, Printer, Download, X } from "lucide-react";
+import { CheckCircle, Printer } from "lucide-react";
 import { useRef } from "react";
+import PrintableInvoice, { DEFAULT_INVOICE_SETTINGS, InvoiceData, InvoiceSettings } from "./PrintableInvoice";
 
 interface ReceiptItem {
   sno: number;
@@ -12,6 +13,10 @@ interface ReceiptItem {
   discPct: number;
   total: number;
   dosageLabel?: string;
+  manufacturer?: string;
+  expiry?: string;
+  gst?: number;
+  hsnCode?: string;
 }
 
 interface SaleReceiptDialogProps {
@@ -32,28 +37,55 @@ const SaleReceiptDialog = ({
   open, onOpenChange, invoiceNo, customerName, items,
   subtotal, discount, gst, total, paymentMethod, onNewSale
 }: SaleReceiptDialogProps) => {
-  const receiptRef = useRef<HTMLDivElement>(null);
+  const invoiceRef = useRef<HTMLDivElement>(null);
+
+  // Load saved settings or use defaults
+  const settings: InvoiceSettings = (() => {
+    try {
+      const saved = localStorage.getItem("invoiceSettings");
+      return saved ? { ...DEFAULT_INVOICE_SETTINGS, ...JSON.parse(saved) } : DEFAULT_INVOICE_SETTINGS;
+    } catch {
+      return DEFAULT_INVOICE_SETTINGS;
+    }
+  })();
+
+  const now = new Date();
+  const invoiceData: InvoiceData = {
+    invoiceNo,
+    billDate: now.toLocaleDateString("en-IN"),
+    billTime: now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+    customerName: customerName || undefined,
+    paymentMethod,
+    items: items.map((item) => ({
+      sno: item.sno,
+      name: item.name,
+      mfr: item.manufacturer,
+      hsnCode: item.hsnCode || "30049099",
+      batch: item.batch,
+      expiry: item.expiry,
+      qty: item.qty,
+      mrp: item.mrp,
+      discPct: item.discPct,
+      gstPct: item.gst ?? 12,
+      dosageLabel: item.dosageLabel,
+    })),
+  };
 
   const handlePrint = () => {
-    const content = receiptRef.current;
-    if (!content) return;
-    const printWindow = window.open("", "_blank", "width=400,height=600");
+    if (!invoiceRef.current) return;
+    const printWindow = window.open("", "_blank", "width=900,height=700");
     if (!printWindow) return;
     printWindow.document.write(`
-      <html><head><title>Receipt - ${invoiceNo}</title>
+      <html><head><title>Invoice - ${invoiceNo}</title>
       <style>
-        body { font-family: 'Courier New', monospace; font-size: 12px; padding: 10px; max-width: 300px; margin: 0 auto; }
-        .center { text-align: center; }
-        .bold { font-weight: bold; }
-        .line { border-top: 1px dashed #000; margin: 6px 0; }
-        .row { display: flex; justify-content: space-between; }
-        .small { font-size: 10px; }
-        table { width: 100%; border-collapse: collapse; }
-        td { padding: 2px 0; font-size: 11px; }
-        .total-row td { font-weight: bold; font-size: 13px; border-top: 1px solid #000; padding-top: 4px; }
+        body { margin: 0; padding: 20px; }
+        @media print { 
+          body { padding: 10px; }
+          @page { margin: 10mm; }
+        }
       </style></head><body>
-      ${content.innerHTML}
-      <script>window.print(); window.close();</script>
+      ${invoiceRef.current.innerHTML}
+      <script>setTimeout(() => { window.print(); }, 300);</script>
       </body></html>
     `);
     printWindow.document.close();
@@ -61,7 +93,7 @@ const SaleReceiptDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-chart-2">
             <CheckCircle className="h-5 w-5" />
@@ -70,42 +102,18 @@ const SaleReceiptDialog = ({
           <DialogDescription>Invoice #{invoiceNo}</DialogDescription>
         </DialogHeader>
 
-        {/* Success animation */}
-        <div className="text-center py-3">
-          <div className="w-16 h-16 rounded-full bg-chart-2/10 flex items-center justify-center mx-auto mb-2 animate-in zoom-in duration-300">
-            <CheckCircle className="h-8 w-8 text-chart-2" />
+        {/* Success */}
+        <div className="text-center py-2">
+          <div className="w-14 h-14 rounded-full bg-chart-2/10 flex items-center justify-center mx-auto mb-2 animate-in zoom-in duration-300">
+            <CheckCircle className="h-7 w-7 text-chart-2" />
           </div>
           <p className="text-2xl font-extrabold text-foreground tabular-nums">₹{total.toFixed(2)}</p>
           <Badge className="mt-1 bg-primary/10 text-primary text-[10px]">{paymentMethod}</Badge>
         </div>
 
-        {/* Receipt Preview */}
-        <div ref={receiptRef} className="bg-muted rounded-xl p-4 text-xs space-y-2 max-h-48 overflow-y-auto border border-border">
-          <div className="center bold" style={{ textAlign: "center", fontWeight: "bold" }}>
-            <p className="text-sm font-bold">PharmaCare Medical Store</p>
-            <p className="text-[10px] text-muted-foreground">123, MG Road, Andheri West, Mumbai</p>
-            <p className="text-[10px] text-muted-foreground">GST: 27AABCM1234L1Z5</p>
-          </div>
-          <div className="border-t border-dashed border-border my-2" />
-          <div className="flex justify-between text-[10px] text-muted-foreground">
-            <span>{invoiceNo}</span>
-            <span>{new Date().toLocaleDateString("en-IN")}</span>
-          </div>
-          {customerName && <p className="text-[10px]">Customer: {customerName}</p>}
-          <div className="border-t border-dashed border-border my-1" />
-          {items.map(item => (
-            <div key={item.sno} className="flex justify-between">
-              <span className="flex-1 truncate">{item.qty}x {item.name}</span>
-              <span className="tabular-nums ml-2">₹{item.total.toFixed(2)}</span>
-            </div>
-          ))}
-          <div className="border-t border-dashed border-border my-1" />
-          <div className="flex justify-between"><span>Subtotal</span><span>₹{subtotal.toFixed(2)}</span></div>
-          {discount > 0 && <div className="flex justify-between"><span>Discount</span><span>-₹{discount.toFixed(2)}</span></div>}
-          <div className="flex justify-between"><span>GST</span><span>₹{gst.toFixed(2)}</span></div>
-          <div className="flex justify-between font-bold text-sm border-t border-border pt-1">
-            <span>Total</span><span>₹{total.toFixed(2)}</span>
-          </div>
+        {/* Invoice Preview */}
+        <div className="border border-border rounded-lg p-2 bg-white max-h-[400px] overflow-y-auto">
+          <PrintableInvoice ref={invoiceRef} data={invoiceData} settings={settings} />
         </div>
 
         {/* Actions */}
@@ -115,7 +123,7 @@ const SaleReceiptDialog = ({
             className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground hover:opacity-90 transition-all active:scale-[0.98]"
           >
             <Printer className="h-4 w-4" />
-            Print Receipt
+            Print Invoice
           </button>
           <button
             onClick={() => { onNewSale(); onOpenChange(false); }}

@@ -416,6 +416,11 @@ const PurchasesPage = () => {
                 <TableCell className="text-sm text-right text-muted-foreground">{order.dueDate || "—"}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center gap-1 justify-end" onClick={e => e.stopPropagation()}>
+                    {(order.status === "ordered" || order.status === "delivered") && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-chart-2 border-chart-2/30 hover:bg-chart-2/10" onClick={() => openReceiveStock(order)}>
+                        <PackageCheck className="h-3 w-3" /> Receive
+                      </Button>
+                    )}
                     {order.status !== "cancelled" && order.paymentStatus !== "paid" && (
                       <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openPayment(order)}>Pay</Button>
                     )}

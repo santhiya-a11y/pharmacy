@@ -123,6 +123,11 @@ const PurchasesPage = () => {
   const [paymentTarget, setPaymentTarget] = useState<PurchaseOrder | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
 
+  // Receive Stock state
+  const [showReceiveStock, setShowReceiveStock] = useState(false);
+  const [receiveTarget, setReceiveTarget] = useState<PurchaseOrder | null>(null);
+  const [receiveItems, setReceiveItems] = useState<ReceiveItem[]>([]);
+
   // New PO form state
   const [poSupplier, setPoSupplier] = useState("");
   const [poItems, setPoItems] = useState<POItem[]>([{ drug: "", qty: 0, rate: 0 }]);

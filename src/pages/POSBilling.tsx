@@ -84,6 +84,13 @@ const SAMPLE_CUSTOMERS_INLINE = [
   { id: 5, name: "Mohammed Ali", phone: "9876543214", address: "JM Road, Pune", type: "regular" as const, lastVisit: "Yesterday" },
 ];
 
+const posCounters = [
+  { id: 1, name: "Counter 1" },
+  { id: 2, name: "Counter 2" },
+  { id: 3, name: "Counter 3" },
+  { id: 4, name: "Counter 4" },
+];
+
 const POSBilling = () => {
   const navigate = useNavigate();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -101,6 +108,7 @@ const POSBilling = () => {
   const [invoiceNo] = useState(() => `INV-${Date.now().toString(36).toUpperCase()}`);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [activeCounter, setActiveCounter] = useState(posCounters[0]);
 
   // Hold
   const [heldBills, setHeldBills] = useState<HeldBill[]>([]);

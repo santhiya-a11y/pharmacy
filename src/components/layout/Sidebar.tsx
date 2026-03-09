@@ -12,7 +12,7 @@ const adminNavGroups = [
   {
     label: "Dashboard",
     items: [
-      { label: "Sales", icon: LayoutDashboard, path: "/" },
+      { label: "Dashboard", icon: LayoutDashboard, path: "/" },
       { label: "Billing (POS)", icon: Receipt, path: "/pos" },
     ],
   },

@@ -397,6 +397,23 @@ const POSBilling = () => {
             <p className="text-[10px] text-muted-foreground">{invoiceNo}</p>
           </div>
 
+          {/* Counter Selector */}
+          <div className="flex items-center gap-1.5 mr-2 border border-border rounded-lg px-2.5 py-1.5 bg-secondary/50">
+            <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
+            <select
+              value={activeCounter.id}
+              onChange={e => {
+                const c = posCounters.find(c => c.id === Number(e.target.value));
+                if (c) setActiveCounter(c);
+              }}
+              className="text-xs font-medium bg-transparent border-0 outline-none text-foreground cursor-pointer"
+            >
+              {posCounters.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Search */}
           <div className="relative flex-1 max-w-xl">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

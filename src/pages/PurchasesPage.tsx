@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import {
   Search, Plus, Package, Truck, IndianRupee, Clock, ClipboardList,
   CheckCircle2, XCircle, Eye, Send, MessageCircle, Mail, Copy, Check, Download, Minus, X,
-  AlertTriangle
+  AlertTriangle, PackageCheck, Warehouse
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription

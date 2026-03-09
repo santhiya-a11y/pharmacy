@@ -60,7 +60,6 @@ const employeeNavGroups = [
     label: "Work",
     items: [
       { label: "Billing (POS)", icon: Receipt, path: "/pos" },
-      { label: "Prescriptions", icon: FileText, path: "/prescriptions" },
     ],
   },
 ];

@@ -195,6 +195,9 @@ const StaffPage = () => {
         </>
       )}
 
+      {/* Staff Detail Panel */}
+      {selectedStaff && <StaffDetailPanel member={selectedStaff} onClose={() => setSelectedStaff(null)} />}
+
       {/* Add Staff Dialog */}
       {showAddDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 backdrop-blur-sm" onClick={() => setShowAddDialog(false)}>

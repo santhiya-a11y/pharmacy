@@ -308,7 +308,8 @@ const PurchasesPage = () => {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
+        <DateRangeFilter />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Order Status" /></SelectTrigger>
           <SelectContent>

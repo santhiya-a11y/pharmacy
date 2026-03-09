@@ -122,7 +122,7 @@ const POSBilling = () => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "F1") { e.preventDefault(); searchRef.current?.focus(); }
       if (e.key === "F2") { e.preventDefault(); setShowBagSelector(true); }
-      if (e.key === "F3") { e.preventDefault(); handleHoldBill(); }
+      if (e.key === "F3") { e.preventDefault(); heldBills.length > 0 ? setShowHeldBills(true) : handleHoldBill(); }
       if (e.key === "F5") { e.preventDefault(); setSelectedPayment("Cash"); setIsSplitPayment(false); }
       if (e.key === "F6") { e.preventDefault(); setSelectedPayment("UPI"); setIsSplitPayment(false); }
       if (e.key === "F7") { e.preventDefault(); setSelectedPayment("Card"); setIsSplitPayment(false); }

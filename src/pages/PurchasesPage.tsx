@@ -622,7 +622,128 @@ const PurchasesPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Create / Edit PO Dialog — Full featured */}
+      {/* Receive Stock Dialog */}
+      <Dialog open={showReceiveStock} onOpenChange={setShowReceiveStock}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PackageCheck className="h-5 w-5 text-chart-2" />
+              Receive Stock — {receiveTarget?.id}
+            </DialogTitle>
+            <DialogDescription>
+              Verify received quantities, enter batch & expiry details to add items to inventory
+            </DialogDescription>
+          </DialogHeader>
+
+          {receiveTarget && (
+            <div className="space-y-4">
+              {/* Supplier info */}
+              <div className="flex items-center gap-2 rounded-lg bg-secondary/50 px-3 py-2">
+                <Truck className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">{receiveTarget.supplier}</span>
+                <span className="text-xs text-muted-foreground">· {receiveTarget.date}</span>
+              </div>
+
+              {/* Items table */}
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-secondary/50 border-b border-border">
+                      <th className="px-3 py-2.5 text-left text-[10px] font-semibold text-muted-foreground">Item</th>
+                      <th className="px-2 py-2.5 text-center text-[10px] font-semibold text-muted-foreground w-16">Ordered</th>
+                      <th className="px-2 py-2.5 text-center text-[10px] font-semibold text-muted-foreground w-20">Received</th>
+                      <th className="px-2 py-2.5 text-left text-[10px] font-semibold text-muted-foreground w-24">Batch *</th>
+                      <th className="px-2 py-2.5 text-left text-[10px] font-semibold text-muted-foreground w-28">Expiry</th>
+                      <th className="px-2 py-2.5 text-right text-[10px] font-semibold text-muted-foreground w-20">MRP (₹)</th>
+                      <th className="px-2 py-2.5 text-left text-[10px] font-semibold text-muted-foreground w-24">Rack</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {receiveItems.map((item, i) => (
+                      <tr key={i} className="border-b border-border/50">
+                        <td className="px-3 py-2 font-medium text-foreground">{item.drug}</td>
+                        <td className="px-2 py-2 text-center text-muted-foreground">{item.orderedQty}</td>
+                        <td className="px-2 py-2">
+                          <Input
+                            type="number"
+                            value={item.receivedQty}
+                            onChange={e => updateReceiveItem(i, "receivedQty", Number(e.target.value))}
+                            className="h-7 text-xs text-center w-16 mx-auto"
+                            min={0}
+                            max={item.orderedQty}
+                          />
+                        </td>
+                        <td className="px-2 py-2">
+                          <Input
+                            value={item.batch}
+                            onChange={e => updateReceiveItem(i, "batch", e.target.value)}
+                            placeholder="Batch #"
+                            className="h-7 text-xs w-20"
+                          />
+                        </td>
+                        <td className="px-2 py-2">
+                          <Input
+                            type="month"
+                            value={item.expiry}
+                            onChange={e => updateReceiveItem(i, "expiry", e.target.value)}
+                            className="h-7 text-xs w-28"
+                          />
+                        </td>
+                        <td className="px-2 py-2">
+                          <Input
+                            type="number"
+                            value={item.mrp}
+                            onChange={e => updateReceiveItem(i, "mrp", Number(e.target.value))}
+                            className="h-7 text-xs text-right w-20"
+                          />
+                        </td>
+                        <td className="px-2 py-2">
+                          <Input
+                            value={item.rackLocation}
+                            onChange={e => updateReceiveItem(i, "rackLocation", e.target.value)}
+                            placeholder="e.g. A1-3"
+                            className="h-7 text-xs w-20"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Summary */}
+              <div className="flex items-center justify-between rounded-lg bg-chart-2/5 border border-chart-2/20 px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Warehouse className="h-4 w-4 text-chart-2" />
+                  <span className="text-sm font-medium text-foreground">
+                    {receiveItems.filter(i => i.receivedQty > 0 && i.batch.trim()).length} of {receiveItems.length} items ready
+                  </span>
+                </div>
+                <span className="text-sm font-bold text-foreground">
+                  Total: {receiveItems.reduce((s, i) => s + i.receivedQty, 0)} units
+                </span>
+              </div>
+
+              {receiveItems.some(i => i.receivedQty < i.orderedQty) && (
+                <div className="flex items-center gap-2 rounded-lg bg-chart-4/10 border border-chart-4/20 px-3 py-2">
+                  <AlertTriangle className="h-4 w-4 text-chart-4" />
+                  <span className="text-xs text-chart-4 font-medium">
+                    Some items have partial or zero quantities — short delivery will be noted
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowReceiveStock(false)}>Cancel</Button>
+            <Button className="gap-2 bg-chart-2 hover:bg-chart-2/90" onClick={handleReceiveStock}>
+              <PackageCheck className="h-4 w-4" /> Confirm & Add to Inventory
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={showAdd} onOpenChange={v => { if (!v) { setShowAdd(false); resetPOForm(); } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>

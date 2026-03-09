@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import AdminAttendanceView from "@/components/staff/AdminAttendanceView";
 
 interface StaffMember {
-  id: number;
+  id: string;
   name: string;
   role: string;
   phone: string;
@@ -21,12 +21,12 @@ interface StaffMember {
 }
 
 const staffData: StaffMember[] = [
-  { id: 1, name: "Priya Sharma", role: "Admin", phone: "+91 98765 43210", email: "priya@pharmacare.in", status: "active", shift: "Full Day", joinDate: "Jan 2023", avatar: "PS", sales: 45200 },
-  { id: 2, name: "Rahul Kumar", role: "Pharmacist", phone: "+91 87654 32109", email: "rahul@pharmacare.in", status: "active", shift: "Morning", joinDate: "Mar 2023", avatar: "RK", sales: 38900 },
-  { id: 3, name: "Anita Devi", role: "Cashier", phone: "+91 76543 21098", email: "anita@pharmacare.in", status: "active", shift: "Evening", joinDate: "Jun 2023", avatar: "AD", sales: 29400 },
-  { id: 4, name: "Suresh Babu", role: "Inventory Manager", phone: "+91 65432 10987", email: "suresh@pharmacare.in", status: "active", shift: "Morning", joinDate: "Aug 2023", avatar: "SB" },
-  { id: 5, name: "Meera Nair", role: "Pharmacist", phone: "+91 54321 09876", email: "meera@pharmacare.in", status: "inactive", shift: "Night", joinDate: "Nov 2023", avatar: "MN", sales: 12300 },
-  { id: 6, name: "Vikram Singh", role: "Delivery", phone: "+91 43210 98765", email: "vikram@pharmacare.in", status: "active", shift: "Full Day", joinDate: "Feb 2024", avatar: "VS" },
+  { id: "EMP-0001", name: "Priya Sharma", role: "Admin", phone: "+91 98765 43210", email: "priya@pharmacare.in", status: "active", shift: "Full Day", joinDate: "Jan 2023", avatar: "PS", sales: 45200 },
+  { id: "EMP-0002", name: "Rahul Kumar", role: "Pharmacist", phone: "+91 87654 32109", email: "rahul@pharmacare.in", status: "active", shift: "Morning", joinDate: "Mar 2023", avatar: "RK", sales: 38900 },
+  { id: "EMP-0003", name: "Anita Devi", role: "Cashier", phone: "+91 76543 21098", email: "anita@pharmacare.in", status: "active", shift: "Evening", joinDate: "Jun 2023", avatar: "AD", sales: 29400 },
+  { id: "EMP-0004", name: "Suresh Babu", role: "Inventory Manager", phone: "+91 65432 10987", email: "suresh@pharmacare.in", status: "active", shift: "Morning", joinDate: "Aug 2023", avatar: "SB" },
+  { id: "EMP-0005", name: "Meera Nair", role: "Pharmacist", phone: "+91 54321 09876", email: "meera@pharmacare.in", status: "inactive", shift: "Night", joinDate: "Nov 2023", avatar: "MN", sales: 12300 },
+  { id: "EMP-0006", name: "Vikram Singh", role: "Delivery", phone: "+91 43210 98765", email: "vikram@pharmacare.in", status: "active", shift: "Full Day", joinDate: "Feb 2024", avatar: "VS" },
 ];
 
 const roleColors: Record<string, string> = {

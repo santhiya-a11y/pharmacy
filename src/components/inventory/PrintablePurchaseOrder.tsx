@@ -1,6 +1,10 @@
 import { forwardRef } from "react";
 import type { InventoryItem } from "./ItemDetailSheet";
-import type { ReorderEntry } from "./PurchaseOrderBuilder";
+
+export interface ReorderEntry {
+  item: InventoryItem;
+  qty: number;
+}
 
 interface PrintablePOProps {
   poNumber: string;

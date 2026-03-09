@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import DosageBuilder from "@/components/billing/DosageBuilder";
+import FrequencySelector, { FrequencyData } from "@/components/billing/FrequencySelector";
 import BagSelector, { BagItem } from "@/components/billing/BagSelector";
 import CustomerSelector, { Customer } from "@/components/billing/CustomerSelector";
 import SaleReceiptDialog from "@/components/billing/SaleReceiptDialog";

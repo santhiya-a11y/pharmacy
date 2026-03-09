@@ -338,44 +338,99 @@ const PurchasesPage = () => {
 
       {/* Order Detail Dialog */}
       <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{selected?.id}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
+              {selected?.id}
+            </DialogTitle>
             <DialogDescription>{selected?.supplier} · {selected?.date}</DialogDescription>
           </DialogHeader>
           {selected && (
-            <div className="space-y-3">
-              <div className="flex gap-2">
+            <div className="space-y-4">
+              {/* Status Badges */}
+              <div className="flex gap-2 flex-wrap">
                 <Badge className={`text-xs ${statusConfig[selected.status].color}`}>{statusConfig[selected.status].label}</Badge>
                 <Badge className={`text-xs ${paymentConfig[selected.paymentStatus].color}`}>Payment: {paymentConfig[selected.paymentStatus].label}</Badge>
+                {selected.paymentTerms && <Badge variant="outline" className="text-xs">{selected.paymentTerms}</Badge>}
               </div>
-              <div className="space-y-1.5">
-                {selected.items.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between bg-muted rounded-md px-3 py-2">
-                    <div>
-                      <p className="text-sm font-medium">{item.drug}</p>
-                      <p className="text-[11px] text-muted-foreground">Rate: ₹{item.rate} × {item.qty}</p>
-                    </div>
-                    <p className="text-sm font-semibold">₹{(item.qty * item.rate).toLocaleString()}</p>
-                  </div>
-                ))}
+
+              {/* PO Meta Grid */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-lg border border-border bg-secondary/30 p-2.5">
+                  <p className="text-[10px] text-muted-foreground">PO Date</p>
+                  <p className="text-xs font-semibold text-card-foreground">{selected.date}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-secondary/30 p-2.5">
+                  <p className="text-[10px] text-muted-foreground">Delivery Date</p>
+                  <p className="text-xs font-semibold text-card-foreground">{selected.deliveryDate || "—"}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-secondary/30 p-2.5">
+                  <p className="text-[10px] text-muted-foreground">Due Date</p>
+                  <p className="text-xs font-semibold text-card-foreground">{selected.dueDate || "—"}</p>
+                </div>
               </div>
-              <div className="border-t border-border pt-2 space-y-1">
-                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total</span><span className="font-bold">₹{selected.totalAmount.toLocaleString()}</span></div>
+
+              {/* Items Table */}
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Line Items</p>
+                <div className="rounded-lg border border-border overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-secondary/50 border-b border-border">
+                        <th className="px-3 py-2 text-left text-[10px] font-semibold text-muted-foreground">#</th>
+                        <th className="px-3 py-2 text-left text-[10px] font-semibold text-muted-foreground">Item</th>
+                        <th className="px-3 py-2 text-center text-[10px] font-semibold text-muted-foreground">Qty</th>
+                        <th className="px-3 py-2 text-right text-[10px] font-semibold text-muted-foreground">Rate</th>
+                        <th className="px-3 py-2 text-right text-[10px] font-semibold text-muted-foreground">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selected.items.map((item, i) => (
+                        <tr key={i} className="border-b border-border/50">
+                          <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
+                          <td className="px-3 py-2 font-medium text-card-foreground">{item.drug}</td>
+                          <td className="px-3 py-2 text-center font-semibold">{item.qty}</td>
+                          <td className="px-3 py-2 text-right text-muted-foreground">₹{item.rate}</td>
+                          <td className="px-3 py-2 text-right font-semibold">₹{(item.qty * item.rate).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Payment Summary */}
+              <div className="rounded-lg border border-border p-3 space-y-1.5">
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total Amount</span><span className="font-bold">₹{selected.totalAmount.toLocaleString()}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-muted-foreground">Paid</span><span className="font-semibold text-chart-2">₹{selected.paidAmount.toLocaleString()}</span></div>
                 {selected.totalAmount - selected.paidAmount > 0 && (
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Balance</span><span className="font-semibold text-destructive">₹{(selected.totalAmount - selected.paidAmount).toLocaleString()}</span></div>
+                  <div className="flex justify-between text-sm border-t border-border pt-1.5"><span className="text-muted-foreground">Balance Due</span><span className="font-bold text-destructive">₹{(selected.totalAmount - selected.paidAmount).toLocaleString()}</span></div>
                 )}
-                {selected.dueDate && <div className="flex justify-between text-sm"><span className="text-muted-foreground">Due Date</span><span>{selected.dueDate}</span></div>}
               </div>
-              {selected.invoiceNo && <p className="text-xs text-muted-foreground">Invoice: {selected.invoiceNo}</p>}
-              <div className="flex gap-2">
+
+              {selected.invoiceNo && (
+                <p className="text-xs text-muted-foreground">Supplier Invoice: <span className="font-mono font-semibold text-card-foreground">{selected.invoiceNo}</span></p>
+              )}
+
+              {selected.remarks && (
+                <div className="rounded-lg border border-border bg-secondary/20 p-3">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Remarks</p>
+                  <p className="text-xs text-card-foreground">{selected.remarks}</p>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-1 border-t border-border">
+                <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => handleDownloadExistingPO(selected)}>
+                  <Download className="h-3.5 w-3.5" /> Download PDF
+                </Button>
+                <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => sendOrderToSupplier(selected)}>
+                  <Send className="h-3.5 w-3.5" /> Send to Supplier
+                </Button>
                 {selected.paymentStatus !== "paid" && (
                   <Button size="sm" className="flex-1" onClick={() => { setSelected(null); openPayment(selected); }}>Record Payment</Button>
                 )}
-                <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={() => sendOrderToSupplier(selected)}>
-                  <Send className="h-3.5 w-3.5" />Send to Supplier
-                </Button>
               </div>
             </div>
           )}

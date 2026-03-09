@@ -480,20 +480,21 @@ const POSBilling = () => {
           <div className="h-full overflow-auto scrollbar-thin">
             <table className="w-full text-xs table-fixed">
               <colgroup>
-                <col style={{ width: "44px" }} />   {/* S.No */}
+                <col style={{ width: "40px" }} />   {/* S.No */}
                 <col style={{ width: "auto" }} />    {/* Item - flexible */}
-                <col style={{ width: "90px" }} />    {/* MFR */}
-                <col style={{ width: "64px" }} />    {/* Batch */}
-                <col style={{ width: "68px" }} />    {/* Expiry */}
-                <col style={{ width: "56px" }} />    {/* HSN */}
-                <col style={{ width: "68px" }} />    {/* MRP */}
-                <col style={{ width: "80px" }} />    {/* Qty */}
-                <col style={{ width: "52px" }} />    {/* SGST */}
-                <col style={{ width: "52px" }} />    {/* CGST */}
-                <col style={{ width: "56px" }} />    {/* Disc% */}
-                <col style={{ width: "80px" }} />    {/* Amount */}
-                <col style={{ width: "60px" }} />    {/* Rx/Dose */}
-                <col style={{ width: "36px" }} />    {/* Delete */}
+                <col style={{ width: "80px" }} />    {/* MFR */}
+                <col style={{ width: "60px" }} />    {/* Batch */}
+                <col style={{ width: "64px" }} />    {/* Expiry */}
+                <col style={{ width: "52px" }} />    {/* HSN */}
+                <col style={{ width: "64px" }} />    {/* MRP */}
+                <col style={{ width: "76px" }} />    {/* Qty */}
+                <col style={{ width: "48px" }} />    {/* SGST */}
+                <col style={{ width: "48px" }} />    {/* CGST */}
+                <col style={{ width: "52px" }} />    {/* Disc% */}
+                <col style={{ width: "76px" }} />    {/* Amount */}
+                <col style={{ width: "110px" }} />   {/* Frequency */}
+                <col style={{ width: "32px" }} />    {/* Rx */}
+                <col style={{ width: "32px" }} />    {/* Delete */}
               </colgroup>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-secondary/70 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-b border-border">

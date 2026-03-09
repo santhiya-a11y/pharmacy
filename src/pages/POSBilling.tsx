@@ -4,7 +4,7 @@ import {
   Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone,
   ShoppingBag, Pill, ArrowLeft, Keyboard, Clock, User, Pause, Printer, Hash,
   AlertTriangle, FileText, ChevronRight, X, SplitSquareHorizontal, Paperclip,
-  Camera, Upload, Star, Gift, Phone
+  Camera, Upload, Star, Gift, Phone, CalendarClock
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import DosageBuilder from "@/components/billing/DosageBuilder";
+import FrequencySelector, { FrequencyData } from "@/components/billing/FrequencySelector";
 import BagSelector, { BagItem } from "@/components/billing/BagSelector";
 import CustomerSelector, { Customer } from "@/components/billing/CustomerSelector";
 import SaleReceiptDialog from "@/components/billing/SaleReceiptDialog";
@@ -33,6 +34,7 @@ interface CartItem {
   cgst: number;
   discPct: number;
   dosageLabel?: string;
+  frequency?: FrequencyData | null;
   isBag?: boolean;
   requiresRx?: boolean;
   rxVerified?: boolean;
@@ -109,6 +111,10 @@ const POSBilling = () => {
   const [rxTargetItemId, setRxTargetItemId] = useState<number | null>(null);
   const [rxDoctorInput, setRxDoctorInput] = useState("");
   const [rxImagePreview, setRxImagePreview] = useState<string | null>(null);
+
+  // Frequency selector
+  const [showFrequency, setShowFrequency] = useState(false);
+  const [frequencyTargetId, setFrequencyTargetId] = useState<number | null>(null);
 
   // Split
   const [isSplitPayment, setIsSplitPayment] = useState(false);
@@ -190,13 +196,33 @@ const POSBilling = () => {
     setCart(prev => prev.map(c => c.id === id ? { ...c, dosageLabel: label } : c));
   };
 
-  // Rx dialog
+  // Rx / Frequency click — context-aware
+  const handleRxClick = (itemId: number) => {
+    const item = cart.find(c => c.id === itemId);
+    if (!item) return;
+    if (item.requiresRx) {
+      // Prescription item → open Rx dialog
+      openRxDialog(itemId);
+    } else {
+      // Non-prescription item → open frequency selector
+      setFrequencyTargetId(itemId);
+      setShowFrequency(true);
+    }
+  };
+
   const openRxDialog = (itemId: number) => {
     const item = cart.find(c => c.id === itemId);
     setRxTargetItemId(itemId);
     setRxDoctorInput(item?.rxDoctorName || "");
     setRxImagePreview(item?.rxImageUrl || null);
     setShowRxDialog(true);
+  };
+
+  const handleFrequencySave = (data: FrequencyData) => {
+    setCart(prev => prev.map(c =>
+      c.id === frequencyTargetId ? { ...c, frequency: data } : c
+    ));
+    toast.success("Frequency set", { description: data.pattern });
   };
 
   const handleRxImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -454,20 +480,21 @@ const POSBilling = () => {
           <div className="h-full overflow-auto scrollbar-thin">
             <table className="w-full text-xs table-fixed">
               <colgroup>
-                <col style={{ width: "44px" }} />   {/* S.No */}
+                <col style={{ width: "40px" }} />   {/* S.No */}
                 <col style={{ width: "auto" }} />    {/* Item - flexible */}
-                <col style={{ width: "90px" }} />    {/* MFR */}
-                <col style={{ width: "64px" }} />    {/* Batch */}
-                <col style={{ width: "68px" }} />    {/* Expiry */}
-                <col style={{ width: "56px" }} />    {/* HSN */}
-                <col style={{ width: "68px" }} />    {/* MRP */}
-                <col style={{ width: "80px" }} />    {/* Qty */}
-                <col style={{ width: "52px" }} />    {/* SGST */}
-                <col style={{ width: "52px" }} />    {/* CGST */}
-                <col style={{ width: "56px" }} />    {/* Disc% */}
-                <col style={{ width: "80px" }} />    {/* Amount */}
-                <col style={{ width: "60px" }} />    {/* Rx/Dose */}
-                <col style={{ width: "36px" }} />    {/* Delete */}
+                <col style={{ width: "80px" }} />    {/* MFR */}
+                <col style={{ width: "60px" }} />    {/* Batch */}
+                <col style={{ width: "64px" }} />    {/* Expiry */}
+                <col style={{ width: "52px" }} />    {/* HSN */}
+                <col style={{ width: "64px" }} />    {/* MRP */}
+                <col style={{ width: "76px" }} />    {/* Qty */}
+                <col style={{ width: "48px" }} />    {/* SGST */}
+                <col style={{ width: "48px" }} />    {/* CGST */}
+                <col style={{ width: "52px" }} />    {/* Disc% */}
+                <col style={{ width: "76px" }} />    {/* Amount */}
+                <col style={{ width: "110px" }} />   {/* Frequency */}
+                <col style={{ width: "32px" }} />    {/* Rx */}
+                <col style={{ width: "32px" }} />    {/* Delete */}
               </colgroup>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-secondary/70 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-b border-border">
@@ -483,6 +510,7 @@ const POSBilling = () => {
                   <th className="text-right px-2 py-2.5">CGST</th>
                   <th className="text-right px-2 py-2.5">Disc%</th>
                   <th className="text-right px-2 py-2.5">Amount</th>
+                  <th className="text-left px-2 py-2.5">Frequency</th>
                   <th className="text-center px-1 py-2.5">Rx</th>
                   <th className="px-1 py-2.5"></th>
                 </tr>
@@ -490,7 +518,7 @@ const POSBilling = () => {
               <tbody>
                 {cart.length === 0 ? (
                   <tr>
-                    <td colSpan={14} className="text-center py-24">
+                    <td colSpan={15} className="text-center py-24">
                       <div className="flex flex-col items-center text-muted-foreground">
                         <div className="w-16 h-16 rounded-full bg-secondary/60 flex items-center justify-center mb-4">
                           <Search className="h-7 w-7 opacity-40" />
@@ -540,30 +568,52 @@ const POSBilling = () => {
                         />
                       </td>
                       <td className="px-2 py-2 text-right font-bold tabular-nums text-card-foreground">₹{getItemAmount(item).toFixed(2)}</td>
+                      {/* Frequency column */}
+                      <td className="px-2 py-2">
+                        {!item.isBag && (
+                          item.frequency ? (
+                            <button
+                              onClick={() => { setFrequencyTargetId(item.id); setShowFrequency(true); }}
+                              className="text-left w-full"
+                              title="Edit frequency"
+                            >
+                              <p className="text-[10px] font-bold font-mono text-card-foreground leading-tight">{item.frequency.pattern}</p>
+                              <p className="text-[8px] text-muted-foreground leading-tight truncate">{item.frequency.labelEn}</p>
+                              <p className="text-[8px] text-muted-foreground leading-tight truncate">{item.frequency.mealEn}</p>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => { setFrequencyTargetId(item.id); setShowFrequency(true); }}
+                              className="rounded p-1 hover:bg-secondary text-muted-foreground transition-colors"
+                              title="Set frequency"
+                            >
+                              <CalendarClock className="h-3 w-3" />
+                            </button>
+                          )
+                        )}
+                      </td>
+                      {/* Rx column — always visible */}
                       <td className="px-1 py-2">
                         {!item.isBag && (
-                          <div className="flex items-center gap-0.5 justify-center">
-                            {item.requiresRx && (
-                              <button
-                                onClick={() => openRxDialog(item.id)}
-                                className={`rounded p-1 transition-colors ${
-                                  item.rxVerified
-                                    ? "bg-chart-2/10 text-chart-2"
-                                    : "bg-destructive/10 text-destructive hover:bg-destructive/20"
-                                }`}
-                                title={item.rxVerified ? `Verified · Dr. ${item.rxDoctorName}` : "Attach prescription"}
-                              >
-                                <Paperclip className="h-3 w-3" />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => setDosageTarget(item)}
-                              className={`rounded p-1 transition-colors ${item.dosageLabel ? "bg-primary/10 text-primary" : "hover:bg-secondary text-muted-foreground"}`}
-                              title={item.dosageLabel || "Set dosage"}
-                            >
-                              <Pill className="h-3 w-3" />
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => handleRxClick(item.id)}
+                            className={`rounded p-1 transition-colors ${
+                              item.requiresRx
+                                ? item.rxVerified
+                                  ? "bg-chart-2/10 text-chart-2"
+                                  : "bg-destructive/10 text-destructive hover:bg-destructive/20"
+                                : item.frequency
+                                  ? "bg-primary/10 text-primary"
+                                  : "hover:bg-secondary text-muted-foreground"
+                            }`}
+                            title={
+                              item.requiresRx
+                                ? item.rxVerified ? `Verified · Dr. ${item.rxDoctorName}` : "Attach prescription"
+                                : item.frequency ? item.frequency.pattern : "Set frequency"
+                            }
+                          >
+                            {item.requiresRx ? <Paperclip className="h-3 w-3" /> : <Pill className="h-3 w-3" />}
+                          </button>
                         )}
                       </td>
                       <td className="px-1 py-2">
@@ -916,6 +966,15 @@ const POSBilling = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Frequency Selector */}
+      <FrequencySelector
+        open={showFrequency}
+        onClose={() => { setShowFrequency(false); setFrequencyTargetId(null); }}
+        medicineName={cart.find(c => c.id === frequencyTargetId)?.name || ""}
+        onSave={handleFrequencySave}
+        initialData={cart.find(c => c.id === frequencyTargetId)?.frequency}
+      />
 
       {/* Dosage Builder Dialog */}
       <Dialog open={!!dosageTarget} onOpenChange={() => setDosageTarget(null)}>

@@ -7,6 +7,7 @@ import {
   AlertTriangle, Clock, Package, TrendingDown, Search,
   ShieldAlert, Calendar, RotateCcw, Trash2
 } from "lucide-react";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 

@@ -162,11 +162,9 @@ const SuppliersPage = () => {
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex items-center gap-1 justify-end">
-                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => openSendOrder(sup)}>
-                      <Send className="h-3 w-3" />Order
-                    </Button>
-                  </div>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelected(sup)}>
+                    <Eye className="h-3 w-3" />
+                  </Button>
                 </TableCell>
               </TableRow>
             ))}

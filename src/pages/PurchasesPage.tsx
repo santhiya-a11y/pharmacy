@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import PrintablePurchaseOrder from "@/components/inventory/PrintablePurchaseOrder";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
 
 type OrderStatus = "draft" | "ordered" | "delivered" | "cancelled";
 type PaymentStatus = "pending" | "partial" | "paid";

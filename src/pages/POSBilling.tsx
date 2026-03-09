@@ -338,6 +338,7 @@ const POSBilling = () => {
   const handleCustomerSelect = (customer: Customer) => {
     setSelectedCustomer(customer);
     setCustomerName(customer.name);
+    setCustomerPhone(customer.phone);
     setRedeemPoints(0);
     toast.success(`Customer: ${customer.name}`);
   };

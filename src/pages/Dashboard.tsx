@@ -4,6 +4,7 @@ import { QuickActions } from "@/components/dashboard/QuickActions";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
 import { TopSellingTable } from "@/components/dashboard/TopSellingTable";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { IndianRupee, ShoppingCart, Package, Wallet } from "lucide-react";
 
 const Dashboard = () => {

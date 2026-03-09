@@ -4,6 +4,7 @@ import { QuickActions } from "@/components/dashboard/QuickActions";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { SalesChart } from "@/components/dashboard/SalesChart";
 import { TopSellingTable } from "@/components/dashboard/TopSellingTable";
+import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { IndianRupee, ShoppingCart, Package, Wallet } from "lucide-react";
 
 const Dashboard = () => {
@@ -22,7 +23,10 @@ const Dashboard = () => {
           <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
           <p className="text-sm text-muted-foreground">{today}</p>
         </div>
-        <QuickActions />
+        <div className="flex items-center gap-3">
+          <DateRangeFilter />
+          <QuickActions />
+        </div>
       </div>
 
       {/* Primary: Inventory Health — immediate operational awareness */}

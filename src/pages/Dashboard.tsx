@@ -23,7 +23,10 @@ const Dashboard = () => {
           <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
           <p className="text-sm text-muted-foreground">{today}</p>
         </div>
-        <QuickActions />
+        <div className="flex items-center gap-3">
+          <DateRangeFilter />
+          <QuickActions />
+        </div>
       </div>
 
       {/* Primary: Inventory Health — immediate operational awareness */}

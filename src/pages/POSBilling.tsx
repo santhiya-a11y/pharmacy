@@ -438,26 +438,42 @@ const POSBilling = () => {
           </div>
         )}
 
-        {/* Cart Table — S.No, ITEM, MFR, BATCH, EXPIRY, HSN, MRP, QTY, SGST, CGST, DISC, AMOUNT */}
+        {/* Cart Table — S.No, ITEM, MFR, BATCH, EXPIRY, HSN, MRP, QTY, SGST, CGST, DISC%, AMOUNT */}
         <div className="flex-1 overflow-hidden">
           <div className="h-full overflow-auto scrollbar-thin">
-            <table className="w-full text-xs">
+            <table className="w-full text-xs table-fixed">
+              <colgroup>
+                <col style={{ width: "44px" }} />   {/* S.No */}
+                <col style={{ width: "auto" }} />    {/* Item - flexible */}
+                <col style={{ width: "90px" }} />    {/* MFR */}
+                <col style={{ width: "64px" }} />    {/* Batch */}
+                <col style={{ width: "68px" }} />    {/* Expiry */}
+                <col style={{ width: "56px" }} />    {/* HSN */}
+                <col style={{ width: "68px" }} />    {/* MRP */}
+                <col style={{ width: "80px" }} />    {/* Qty */}
+                <col style={{ width: "52px" }} />    {/* SGST */}
+                <col style={{ width: "52px" }} />    {/* CGST */}
+                <col style={{ width: "56px" }} />    {/* Disc% */}
+                <col style={{ width: "80px" }} />    {/* Amount */}
+                <col style={{ width: "60px" }} />    {/* Rx/Dose */}
+                <col style={{ width: "36px" }} />    {/* Delete */}
+              </colgroup>
               <thead className="sticky top-0 z-10">
-                <tr className="bg-secondary/70 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  <th className="text-left px-3 py-2.5 w-10">S.No</th>
+                <tr className="bg-secondary/70 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-b border-border">
+                  <th className="text-left pl-3 pr-1 py-2.5">S.No</th>
                   <th className="text-left px-2 py-2.5">Item</th>
-                  <th className="text-left px-2 py-2.5 w-24">MFR</th>
-                  <th className="text-left px-2 py-2.5 w-16">Batch</th>
-                  <th className="text-left px-2 py-2.5 w-16">Expiry</th>
-                  <th className="text-left px-2 py-2.5 w-14">HSN</th>
-                  <th className="text-right px-2 py-2.5 w-16">MRP</th>
-                  <th className="text-center px-2 py-2.5 w-20">Qty</th>
-                  <th className="text-right px-2 py-2.5 w-14">SGST</th>
-                  <th className="text-right px-2 py-2.5 w-14">CGST</th>
-                  <th className="text-right px-2 py-2.5 w-14">Disc%</th>
-                  <th className="text-right px-2 py-2.5 w-20">Amount</th>
-                  <th className="text-center px-2 py-2.5 w-20">Rx/Dose</th>
-                  <th className="w-8 px-2 py-2.5"></th>
+                  <th className="text-left px-2 py-2.5">MFR</th>
+                  <th className="text-left px-2 py-2.5">Batch</th>
+                  <th className="text-left px-2 py-2.5">Expiry</th>
+                  <th className="text-left px-2 py-2.5">HSN</th>
+                  <th className="text-right px-2 py-2.5">MRP</th>
+                  <th className="text-center px-1 py-2.5">Qty</th>
+                  <th className="text-right px-2 py-2.5">SGST</th>
+                  <th className="text-right px-2 py-2.5">CGST</th>
+                  <th className="text-right px-2 py-2.5">Disc%</th>
+                  <th className="text-right px-2 py-2.5">Amount</th>
+                  <th className="text-center px-1 py-2.5">Rx</th>
+                  <th className="px-1 py-2.5"></th>
                 </tr>
               </thead>
               <tbody>
@@ -476,74 +492,72 @@ const POSBilling = () => {
                 ) : (
                   cart.map(item => (
                     <tr key={item.id} className={`border-b border-border/40 hover:bg-accent/30 transition-colors ${item.requiresRx && !item.rxVerified ? "bg-destructive/[0.03]" : ""}`}>
-                      <td className="px-3 py-2.5 text-muted-foreground font-medium">{item.sno}</td>
-                      <td className="px-2 py-2.5">
-                        <div className="flex items-center gap-1.5">
+                      <td className="pl-3 pr-1 py-2 text-muted-foreground font-medium tabular-nums">{item.sno}</td>
+                      <td className="px-2 py-2 overflow-hidden">
+                        <div className="flex items-center gap-1.5 min-w-0">
                           {item.requiresRx && !item.rxVerified && <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />}
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-card-foreground truncate">{item.name}</p>
-                            {item.dosageLabel && <p className="text-[10px] text-primary mt-0.5 truncate">💊 {item.dosageLabel}</p>}
-                            {item.rxDoctorName && <p className="text-[10px] text-chart-2 truncate">Dr. {item.rxDoctorName}</p>}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] font-semibold text-card-foreground truncate leading-tight">{item.name}</p>
+                            {item.dosageLabel && <p className="text-[9px] text-primary truncate leading-tight">💊 {item.dosageLabel}</p>}
+                            {item.rxDoctorName && <p className="text-[9px] text-chart-2 truncate leading-tight">Dr. {item.rxDoctorName}</p>}
                           </div>
                         </div>
                       </td>
-                      <td className="px-2 py-2.5 text-muted-foreground truncate">{item.mfr}</td>
-                      <td className="px-2 py-2.5 font-mono text-muted-foreground">{item.batch}</td>
-                      <td className="px-2 py-2.5 text-muted-foreground">{item.expiry}</td>
-                      <td className="px-2 py-2.5 text-muted-foreground font-mono">{item.hsn}</td>
-                      <td className="px-2 py-2.5 text-right font-semibold tabular-nums">₹{item.mrp}</td>
-                      <td className="px-2 py-2.5">
-                        <div className="flex items-center justify-center gap-1">
-                          <button onClick={() => updateQty(item.id, -1)} className="rounded-md p-1 hover:bg-secondary transition-colors active:scale-95">
+                      <td className="px-2 py-2 text-muted-foreground truncate text-[10px]">{item.mfr}</td>
+                      <td className="px-2 py-2 font-mono text-muted-foreground text-[10px]">{item.batch}</td>
+                      <td className="px-2 py-2 text-muted-foreground text-[10px]">{item.expiry}</td>
+                      <td className="px-2 py-2 text-muted-foreground font-mono text-[10px]">{item.hsn}</td>
+                      <td className="px-2 py-2 text-right font-semibold tabular-nums">₹{item.mrp}</td>
+                      <td className="px-1 py-2">
+                        <div className="flex items-center justify-center gap-0.5">
+                          <button onClick={() => updateQty(item.id, -1)} className="rounded p-0.5 hover:bg-secondary transition-colors active:scale-95">
                             <Minus className="h-3 w-3" />
                           </button>
-                          <span className="w-7 text-center text-xs font-bold tabular-nums">{item.qty}</span>
-                          <button onClick={() => updateQty(item.id, 1)} className="rounded-md p-1 hover:bg-secondary transition-colors active:scale-95">
+                          <span className="w-6 text-center text-xs font-bold tabular-nums">{item.qty}</span>
+                          <button onClick={() => updateQty(item.id, 1)} className="rounded p-0.5 hover:bg-secondary transition-colors active:scale-95">
                             <Plus className="h-3 w-3" />
                           </button>
                         </div>
                       </td>
-                      <td className="px-2 py-2.5 text-right text-muted-foreground tabular-nums">{item.sgst}%</td>
-                      <td className="px-2 py-2.5 text-right text-muted-foreground tabular-nums">{item.cgst}%</td>
-                      <td className="px-2 py-2.5">
-                        <div className="flex justify-end">
-                          <input
-                            type="number" min={0} max={100} value={item.discPct}
-                            onChange={e => updateDiscount(item.id, parseFloat(e.target.value) || 0)}
-                            className="w-12 rounded-md border border-border bg-background px-1.5 py-1 text-xs text-right tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
-                          />
-                        </div>
+                      <td className="px-2 py-2 text-right text-muted-foreground tabular-nums text-[10px]">{item.sgst}%</td>
+                      <td className="px-2 py-2 text-right text-muted-foreground tabular-nums text-[10px]">{item.cgst}%</td>
+                      <td className="px-2 py-2">
+                        <input
+                          type="number" min={0} max={100} value={item.discPct}
+                          onChange={e => updateDiscount(item.id, parseFloat(e.target.value) || 0)}
+                          className="w-full rounded border border-border bg-background px-1 py-0.5 text-[10px] text-right tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
+                        />
                       </td>
-                      <td className="px-2 py-2.5 text-right font-bold tabular-nums text-card-foreground">₹{getItemAmount(item).toFixed(2)}</td>
-                      <td className="px-2 py-2.5">
+                      <td className="px-2 py-2 text-right font-bold tabular-nums text-card-foreground">₹{getItemAmount(item).toFixed(2)}</td>
+                      <td className="px-1 py-2">
                         {!item.isBag && (
                           <div className="flex items-center gap-0.5 justify-center">
                             {item.requiresRx && (
                               <button
                                 onClick={() => openRxDialog(item.id)}
-                                className={`rounded-md p-1.5 transition-colors text-[10px] font-bold ${
+                                className={`rounded p-1 transition-colors ${
                                   item.rxVerified
                                     ? "bg-chart-2/10 text-chart-2"
                                     : "bg-destructive/10 text-destructive hover:bg-destructive/20"
                                 }`}
                                 title={item.rxVerified ? `Verified · Dr. ${item.rxDoctorName}` : "Attach prescription"}
                               >
-                                <Paperclip className="h-3.5 w-3.5" />
+                                <Paperclip className="h-3 w-3" />
                               </button>
                             )}
                             <button
                               onClick={() => setDosageTarget(item)}
-                              className={`rounded-md p-1.5 transition-colors ${item.dosageLabel ? "bg-primary/10 text-primary" : "hover:bg-secondary text-muted-foreground"}`}
+                              className={`rounded p-1 transition-colors ${item.dosageLabel ? "bg-primary/10 text-primary" : "hover:bg-secondary text-muted-foreground"}`}
                               title={item.dosageLabel || "Set dosage"}
                             >
-                              <Pill className="h-3.5 w-3.5" />
+                              <Pill className="h-3 w-3" />
                             </button>
                           </div>
                         )}
                       </td>
-                      <td className="px-2 py-2.5">
-                        <button onClick={() => removeItem(item.id)} className="rounded-md p-1.5 hover:bg-destructive/10 transition-colors active:scale-95">
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                      <td className="px-1 py-2">
+                        <button onClick={() => removeItem(item.id)} className="rounded p-1 hover:bg-destructive/10 transition-colors active:scale-95">
+                          <Trash2 className="h-3 w-3 text-destructive" />
                         </button>
                       </td>
                     </tr>

@@ -136,7 +136,7 @@ const InventoryPage = () => {
         onAddToReorder={handleAddToReorder}
         isInReorder={selectedItem ? isInReorder(selectedItem.name) : false}
       />
-      <ReorderCart
+      <PurchaseOrderBuilder
         entries={reorderEntries}
         onUpdateQty={handleUpdateQty}
         onRemove={handleRemove}

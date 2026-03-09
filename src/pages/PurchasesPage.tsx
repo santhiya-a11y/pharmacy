@@ -607,6 +607,54 @@ const PurchasesPage = () => {
               </div>
             </div>
 
+            {/* Expiring Items from this Supplier */}
+            {poSupplier && supplierExpiringItems.length > 0 && (
+              <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-warning" />
+                  <p className="text-xs font-semibold text-warning">Expiring / Low Stock Items from {poSupplier}</p>
+                </div>
+                <p className="text-[10px] text-muted-foreground">These items from this supplier are expiring soon or running low. Select to add them to this PO.</p>
+                <div className="space-y-1">
+                  {supplierExpiringItems.map((item, idx) => {
+                    const alreadyInPO = poItems.some(p => p.drug === item.name);
+                    return (
+                      <div key={idx} className="flex items-center gap-3 rounded-md border border-border bg-background p-2">
+                        <Checkbox
+                          checked={alreadyInPO}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              const suggestedQty = item.stock < 10 ? 100 : item.stock < 50 ? 50 : 30;
+                              setPoItems(prev => {
+                                const cleaned = prev.filter(p => p.drug.trim() !== "");
+                                return [...cleaned, { drug: item.name, qty: suggestedQty, rate: item.purchasePrice }];
+                              });
+                            } else {
+                              setPoItems(prev => {
+                                const filtered = prev.filter(p => p.drug !== item.name);
+                                return filtered.length === 0 ? [{ drug: "", qty: 0, rate: 0 }] : filtered;
+                              });
+                            }
+                          }}
+                          className="h-4 w-4"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-card-foreground truncate">{item.name}</p>
+                          <p className="text-[10px] text-muted-foreground">Batch: {item.batch} · Exp: {item.expiry} · Stock: {item.stock}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <Badge className={`text-[9px] ${item.status === "low" ? "bg-destructive/10 text-destructive" : "bg-warning/10 text-warning"}`}>
+                            {item.status === "low" ? "Low Stock" : "Expiring"}
+                          </Badge>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">₹{item.purchasePrice}/unit</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Line Items */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">

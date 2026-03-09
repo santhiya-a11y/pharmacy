@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import { Save, Upload, X, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import PrintableInvoice, { InvoiceSettings as InvoiceSettingsType, DEFAULT_INVOICE_SETTINGS, InvoiceData } from "@/components/billing/PrintableInvoice";
@@ -17,9 +18,13 @@ const sampleInvoiceData: InvoiceData = {
   customerPhone: "8248973396",
   customerAge: "26 Y",
   customerSex: "Female",
+  customerHN: "A896191",
+  tokenNumber: "TK-0042",
   doctorName: "Dr. Saradha D",
   customerAddress: "17B, Poonga Nagar, Coimbatore",
   paymentMethod: "Cash",
+  pageNumber: 1,
+  totalPages: 1,
   items: [
     { sno: 1, name: "Glimisis MV 2/0.2/500MG Tab 10's", mfr: "ORCH", hsnCode: "30049099", batch: "10159", expiry: "09-27", qty: 6, mrp: 119.06, discPct: 0, gstPct: 12 },
     { sno: 2, name: "Juviana Tab 10's", mfr: "CELA", hsnCode: "30049099", batch: "T2519", expiry: "08-27", qty: 3, mrp: 267.00, discPct: 2.5, gstPct: 12 },
@@ -28,7 +33,12 @@ const sampleInvoiceData: InvoiceData = {
 };
 
 export const InvoiceSettingsPanel = () => {
-  const [settings, setSettings] = useState<InvoiceSettingsType>(DEFAULT_INVOICE_SETTINGS);
+  const [settings, setSettings] = useState<InvoiceSettingsType>(() => {
+    try {
+      const saved = localStorage.getItem("invoiceSettings");
+      return saved ? { ...DEFAULT_INVOICE_SETTINGS, ...JSON.parse(saved) } : DEFAULT_INVOICE_SETTINGS;
+    } catch { return DEFAULT_INVOICE_SETTINGS; }
+  });
   const [showPreview, setShowPreview] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -56,10 +66,8 @@ export const InvoiceSettingsPanel = () => {
     if (!printWindow) return;
     printWindow.document.write(`
       <html><head><title>Invoice Preview</title>
-      <style>
-        body { margin: 0; padding: 20px; }
-        @media print { body { padding: 0; } }
-      </style></head><body>
+      <style>body { margin: 0; padding: 20px; } @media print { body { padding: 0; } @page { margin: 10mm; } }</style>
+      </head><body>
       ${previewRef.current.innerHTML}
       <script>setTimeout(() => { window.print(); }, 300);</script>
       </body></html>
@@ -67,30 +75,61 @@ export const InvoiceSettingsPanel = () => {
     printWindow.document.close();
   };
 
-  const toggleFields: { key: keyof InvoiceSettingsType; label: string; desc: string }[] = [
-    { key: "showLogo", label: "Show Logo", desc: "Display pharmacy logo on invoice header" },
-    { key: "showDoctor", label: "Doctor Name", desc: "Show prescribing doctor field" },
-    { key: "showPatientAge", label: "Patient Age/Sex", desc: "Show patient age and gender" },
-    { key: "showHSN", label: "HSN Code", desc: "Show HSN code column for GST compliance" },
-    { key: "showBatch", label: "Batch Number", desc: "Show batch number for each item" },
-    { key: "showExpiry", label: "Expiry Date", desc: "Show expiry date for each item" },
-    { key: "showMFR", label: "Manufacturer", desc: "Show manufacturer column" },
-    { key: "showDiscount", label: "Discount Column", desc: "Show discount percentage column" },
-    { key: "showSGSTCGST", label: "SGST/CGST Split", desc: "Show separate SGST and CGST columns" },
-    { key: "showPharmacist", label: "Pharmacist Name", desc: "Show pharmacist name in footer" },
+  const headerFields: { key: keyof InvoiceSettingsType; label: string; placeholder?: string; colSpan?: number }[] = [
+    { key: "pharmacyName", label: "Pharmacy Name" },
+    { key: "subtitle", label: "Subtitle", placeholder: "e.g. Pharmacy Division" },
+    { key: "phone", label: "Phone" },
+    { key: "email", label: "Email" },
+    { key: "website", label: "Website", placeholder: "e.g. www.pharmacare.in" },
+    { key: "gstin", label: "GSTIN" },
+    { key: "dlNo", label: "Drug License No" },
+    { key: "stateNameCode", label: "State Name & Code", placeholder: "e.g. TN-33" },
+    { key: "operatingHours", label: "Operating Hours", placeholder: "e.g. 24 Hours - No Holiday" },
+    { key: "invoiceTitle", label: "Invoice Title", placeholder: "TAX INVOICE - CASH" },
+  ];
+
+  const footerFields: { key: keyof InvoiceSettingsType; label: string; placeholder?: string }[] = [
+    { key: "pharmacistName", label: "Pharmacist Name" },
+    { key: "billedByName", label: "Billed By", placeholder: "Staff name" },
+    { key: "checkedByName", label: "Checked By", placeholder: "Verifier name" },
+    { key: "deliveryNote", label: "Delivery Note", placeholder: "e.g. Delivered at Pharmacy" },
+    { key: "footerNote", label: "Footer Message", placeholder: "e.g. Thank you" },
+  ];
+
+  const columnToggles: { key: keyof InvoiceSettingsType; label: string; desc: string }[] = [
+    { key: "showLogo", label: "Pharmacy Logo", desc: "Display logo in header" },
+    { key: "showHN", label: "Hospital Number (HN)", desc: "Patient hospital/registration number" },
+    { key: "showDoctor", label: "Doctor Name", desc: "Prescribing doctor field" },
+    { key: "showPatientAge", label: "Patient Age / Sex", desc: "Age and gender of patient" },
+    { key: "showTokenNumber", label: "Token Number", desc: "Queue/token number" },
+    { key: "showStateCode", label: "State Name & Code", desc: "GST state code (e.g. TN-33)" },
+    { key: "showPageNumber", label: "Page Number", desc: "Page X of Y" },
+    { key: "showMFR", label: "Manufacturer (MFR)", desc: "Manufacturer code column" },
+    { key: "showHSN", label: "HSN Code", desc: "HSN code for GST compliance" },
+    { key: "showBatch", label: "Batch Number", desc: "Batch number column" },
+    { key: "showExpiry", label: "Expiry Date", desc: "Expiry date column" },
+    { key: "showValue", label: "Value (MRP × Qty)", desc: "Gross value before discount" },
+    { key: "showDiscount", label: "Discount %", desc: "Discount percentage column" },
+    { key: "showTaxableValue", label: "Taxable Value", desc: "Value after discount, before tax" },
+    { key: "showGSTPercent", label: "GST %", desc: "GST rate percentage column" },
+    { key: "showSGSTCGST", label: "SGST / CGST Split", desc: "Separate SGST and CGST amount columns" },
+    { key: "showPharmacist", label: "Pharmacist Name", desc: "Show pharmacist in footer" },
+    { key: "showBilledBy", label: "Billed By", desc: "Staff who created the bill" },
+    { key: "showCheckedBy", label: "Checked By", desc: "Staff who verified the bill" },
+    { key: "showDeliveryNote", label: "Delivery Note", desc: "e.g. Delivered at Pharmacy" },
   ];
 
   return (
     <>
       <div className="space-y-4">
-        {/* Pharmacy Details for Invoice */}
+        {/* Header Details */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Invoice Header</CardTitle>
-            <CardDescription>Pharmacy details that appear on printed invoices</CardDescription>
+            <CardDescription>Pharmacy details printed on every invoice</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Logo Upload */}
+            {/* Logo */}
             <div className="flex items-center gap-4">
               <div className="w-20 h-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center overflow-hidden bg-muted/30">
                 {settings.logoUrl ? (
@@ -104,7 +143,7 @@ export const InvoiceSettingsPanel = () => {
                 <div className="flex items-center gap-2">
                   <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
                   <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => logoInputRef.current?.click()}>
-                    <Upload className="h-3 w-3 mr-1" /> Upload Logo
+                    <Upload className="h-3 w-3 mr-1" /> Upload
                   </Button>
                   {settings.logoUrl && (
                     <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => update("logoUrl", "")}>
@@ -116,70 +155,68 @@ export const InvoiceSettingsPanel = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Pharmacy Name</Label>
-                <Input value={settings.pharmacyName} onChange={(e) => update("pharmacyName", e.target.value)} className="h-9" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Subtitle</Label>
-                <Input value={settings.subtitle} onChange={(e) => update("subtitle", e.target.value)} className="h-9" placeholder="e.g. Pharmacy Division" />
-              </div>
-            </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Address</Label>
               <Input value={settings.address} onChange={(e) => update("address", e.target.value)} className="h-9" />
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Phone</Label>
-                <Input value={settings.phone} onChange={(e) => update("phone", e.target.value)} className="h-9" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">GSTIN</Label>
-                <Input value={settings.gstin} onChange={(e) => update("gstin", e.target.value)} className="h-9" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Drug License No</Label>
-                <Input value={settings.dlNo} onChange={(e) => update("dlNo", e.target.value)} className="h-9" />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Invoice Title</Label>
-                <Input value={settings.invoiceTitle} onChange={(e) => update("invoiceTitle", e.target.value)} className="h-9" placeholder="TAX INVOICE - CASH" />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Pharmacist Name</Label>
-                <Input value={settings.pharmacistName} onChange={(e) => update("pharmacistName", e.target.value)} className="h-9" />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Footer Note</Label>
-              <Input value={settings.footerNote} onChange={(e) => update("footerNote", e.target.value)} className="h-9" placeholder="e.g. Thank you for your purchase" />
+
+            <div className="grid grid-cols-2 gap-3">
+              {headerFields.map((f) => (
+                <div key={f.key} className="space-y-1.5">
+                  <Label className="text-xs">{f.label}</Label>
+                  <Input
+                    value={settings[f.key] as string}
+                    onChange={(e) => update(f.key, e.target.value)}
+                    className="h-9"
+                    placeholder={f.placeholder}
+                  />
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* Field Visibility */}
+        {/* Footer Details */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Invoice Fields</CardTitle>
-            <CardDescription>Choose which columns and fields appear on the printed invoice</CardDescription>
+            <CardTitle className="text-base">Invoice Footer</CardTitle>
+            <CardDescription>Staff names, notes, and footer text</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-1">
-            {toggleFields.map((f) => (
-              <div key={f.key} className="flex items-center justify-between py-2.5 border-b border-border/50 last:border-0">
-                <div>
-                  <p className="text-sm font-medium">{f.label}</p>
-                  <p className="text-[11px] text-muted-foreground">{f.desc}</p>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3">
+              {footerFields.map((f) => (
+                <div key={f.key} className="space-y-1.5">
+                  <Label className="text-xs">{f.label}</Label>
+                  <Input
+                    value={settings[f.key] as string}
+                    onChange={(e) => update(f.key, e.target.value)}
+                    className="h-9"
+                    placeholder={f.placeholder}
+                  />
                 </div>
-                <Switch
-                  checked={settings[f.key] as boolean}
-                  onCheckedChange={(v) => update(f.key, v)}
-                />
-              </div>
-            ))}
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Field Toggles */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Field Visibility</CardTitle>
+            <CardDescription>Toggle which fields and columns appear on the printed invoice</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+              {columnToggles.map((f) => (
+                <div key={f.key} className="flex items-center justify-between py-2.5 border-b border-border/40 last:border-0">
+                  <div>
+                    <p className="text-sm font-medium">{f.label}</p>
+                    <p className="text-[10px] text-muted-foreground">{f.desc}</p>
+                  </div>
+                  <Switch checked={settings[f.key] as boolean} onCheckedChange={(v) => update(f.key, v)} />
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
 
@@ -199,7 +236,7 @@ export const InvoiceSettingsPanel = () => {
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Invoice Preview</DialogTitle>
-            <DialogDescription>This is how your printed invoice will look</DialogDescription>
+            <DialogDescription>This is how your printed invoice will look with sample data</DialogDescription>
           </DialogHeader>
           <div className="border border-border rounded-lg p-2 bg-white">
             <PrintableInvoice ref={previewRef} data={sampleInvoiceData} settings={settings} />

@@ -244,6 +244,7 @@ const PurchasesPage = () => {
     }, 100);
   };
 
+  return (
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>

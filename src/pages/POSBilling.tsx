@@ -112,6 +112,10 @@ const POSBilling = () => {
   const [rxDoctorInput, setRxDoctorInput] = useState("");
   const [rxImagePreview, setRxImagePreview] = useState<string | null>(null);
 
+  // Frequency selector
+  const [showFrequency, setShowFrequency] = useState(false);
+  const [frequencyTargetId, setFrequencyTargetId] = useState<number | null>(null);
+
   // Split
   const [isSplitPayment, setIsSplitPayment] = useState(false);
   const [splitPayments, setSplitPayments] = useState<SplitPayment[]>([]);

@@ -7,8 +7,10 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Settings, Building2, Receipt, Bell, Shield, Printer,
-  Globe, Database, Users, Save, ShoppingBag, Upload, X, Image, FileText
+  Globe, Database, Users, Save, ShoppingBag, Upload, X, Image, FileText, Plus, Trash2
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InvoiceSettingsPanel } from "@/components/settings/InvoiceSettings";
 
 type SettingsTab = "store" | "billing" | "invoice" | "notifications" | "security" | "printing" | "bags" | "integrations";

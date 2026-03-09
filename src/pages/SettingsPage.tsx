@@ -371,6 +371,31 @@ const SettingsPage = () => {
                     </DialogHeader>
                     {editingBag && (
                       <div className="space-y-3 pt-2">
+                        {/* Image Upload */}
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Image</Label>
+                          <div className="relative w-full h-28 rounded-lg overflow-hidden bg-muted/50 flex items-center justify-center group border border-border">
+                            {editingBag.imageUrl ? (
+                              <>
+                                <img src={editingBag.imageUrl} alt={editingBag.name} className="w-full h-full object-cover" />
+                                <button onClick={() => setEditingBag(p => p ? { ...p, imageUrl: undefined } : p)} className="absolute top-1 right-1 bg-destructive/90 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"><X className="h-3 w-3 text-destructive-foreground" /></button>
+                              </>
+                            ) : (
+                              <span className="text-3xl">{editingBag.icon}</span>
+                            )}
+                            <label className="absolute bottom-1 right-1 bg-background/90 rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity border border-border cursor-pointer">
+                              <Upload className="h-3.5 w-3.5 text-foreground" />
+                              <input type="file" accept="image/*" className="hidden" onChange={e => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const url = URL.createObjectURL(file);
+                                  setEditingBag(p => p ? { ...p, imageUrl: url } : p);
+                                }
+                                e.target.value = "";
+                              }} />
+                            </label>
+                          </div>
+                        </div>
                         <div className="space-y-1.5">
                           <Label className="text-xs">Bag Name</Label>
                           <Input className="h-9" value={editingBag.name} onChange={e => setEditingBag(p => p ? { ...p, name: e.target.value } : p)} />

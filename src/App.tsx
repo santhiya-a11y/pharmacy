@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import POSBilling from "./pages/POSBilling";
 
 import InventoryPage from "./pages/InventoryPage";
+import InvoicesPage from "./pages/InvoicesPage";
 import ReportsPage from "./pages/ReportsPage";
 import StaffPage from "./pages/StaffPage";
 

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import AddStockDialog from "@/components/inventory/AddStockDialog";
 import ItemDetailSheet from "@/components/inventory/ItemDetailSheet";
 import type { InventoryItem } from "@/components/inventory/ItemDetailSheet";
+import ImportExportMenu from "@/components/shared/ImportExportMenu";
 
 const inventory: InventoryItem[] = [
   { name: "Dolo 650mg", mfr: "Micro Labs", batch: "B102", expiry: "08/2026", hsn: "3004", mrp: 30, stock: 250, sgst: 6, cgst: 6, rack: "A1-03", status: "safe", purchasePrice: 22, supplier: "Micro Labs" },

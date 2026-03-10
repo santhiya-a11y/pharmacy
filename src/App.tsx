@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import POSBilling from "./pages/POSBilling";
 
 import InventoryPage from "./pages/InventoryPage";
+import InvoicesPage from "./pages/InvoicesPage";
 import ReportsPage from "./pages/ReportsPage";
 import StaffPage from "./pages/StaffPage";
 
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/pos" element={<POSBilling />} />
             
             <Route path="/inventory" element={<AppLayout><InventoryPage /></AppLayout>} />
+            <Route path="/invoices" element={<AppLayout><InvoicesPage /></AppLayout>} />
             <Route path="/purchases" element={<AppLayout><PurchasesPage /></AppLayout>} />
             <Route path="/suppliers" element={<AppLayout><SuppliersPage /></AppLayout>} />
             <Route path="/customers" element={<AppLayout><CustomersPage /></AppLayout>} />

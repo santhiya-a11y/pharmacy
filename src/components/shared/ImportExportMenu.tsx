@@ -1,4 +1,4 @@
-import { Upload, Download, FileSpreadsheet } from "lucide-react";
+import { Upload, Download } from "lucide-react";
 import { useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -6,9 +6,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
 
 interface Column {
@@ -78,24 +76,20 @@ const ImportExportMenu = ({ data, columns, filenamePrefix, onImport }: ImportExp
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
         const text = ev.target?.result as string;
         let rows: Record<string, string>[];
-
         if (file.name.endsWith(".json")) {
           rows = JSON.parse(text);
         } else {
           rows = parseCSV(text);
         }
-
         if (rows.length === 0) {
           toast.error("No data found in file");
           return;
         }
-
         onImport?.(rows);
         toast.success(`Imported ${rows.length} rows from ${file.name}`);
       } catch {
@@ -107,7 +101,7 @@ const ImportExportMenu = ({ data, columns, filenamePrefix, onImport }: ImportExp
   };
 
   return (
-    <>
+    <div className="flex items-center gap-2">
       <input
         ref={fileInputRef}
         type="file"
@@ -115,36 +109,33 @@ const ImportExportMenu = ({ data, columns, filenamePrefix, onImport }: ImportExp
         className="hidden"
         onChange={handleImport}
       />
+
+      {/* Export Button */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="gap-2">
-            <FileSpreadsheet className="h-4 w-4" />
-            Import / Export
+            <Download className="h-4 w-4" />
+            Export
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuLabel>Export</DropdownMenuLabel>
+        <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => exportToCSV(data, columns, filename)}>
-            <Download className="h-4 w-4 mr-2" />
             Export as CSV
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => exportToJSON(data, columns, filename)}>
-            <Download className="h-4 w-4 mr-2" />
             Export as JSON
           </DropdownMenuItem>
-          {onImport && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Import</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
-                <Upload className="h-4 w-4 mr-2" />
-                Import CSV / JSON
-              </DropdownMenuItem>
-            </>
-          )}
         </DropdownMenuContent>
       </DropdownMenu>
-    </>
+
+      {/* Import Button */}
+      {onImport && (
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => fileInputRef.current?.click()}>
+          <Upload className="h-4 w-4" />
+          Import
+        </Button>
+      )}
+    </div>
   );
 };
 

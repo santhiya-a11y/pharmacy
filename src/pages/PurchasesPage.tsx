@@ -9,6 +9,7 @@ import {
   CheckCircle2, XCircle, Eye, Send, MessageCircle, Mail, Copy, Check, Download, Minus, X,
   AlertTriangle, PackageCheck, Warehouse
 } from "lucide-react";
+import ImportExportMenu from "@/components/shared/ImportExportMenu";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from "@/components/ui/dialog";
@@ -331,6 +332,30 @@ const PurchasesPage = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search PO or supplier..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9" />
           </div>
+          <ImportExportMenu
+            data={orders.map(o => ({
+              id: o.id,
+              supplier: o.supplier,
+              date: o.date,
+              items: o.items.map(i => `${i.drug} x${i.qty}`).join("; "),
+              status: o.status,
+              paymentStatus: o.paymentStatus,
+              totalAmount: o.totalAmount,
+              paidAmount: o.paidAmount,
+            }))}
+            columns={[
+              { key: "id", label: "PO ID" },
+              { key: "supplier", label: "Supplier" },
+              { key: "date", label: "Date" },
+              { key: "items", label: "Items" },
+              { key: "status", label: "Status" },
+              { key: "paymentStatus", label: "Payment" },
+              { key: "totalAmount", label: "Total" },
+              { key: "paidAmount", label: "Paid" },
+            ]}
+            filenamePrefix="purchase_orders"
+            onImport={(rows) => toast.success(`${rows.length} PO records ready to process`)}
+          />
           <Button size="sm" onClick={() => { resetPOForm(); setShowAdd(true); }}><Plus className="h-4 w-4 mr-1" />New PO</Button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { Search, Filter, Plus } from "lucide-react";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
@@ -6,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import AddStockDialog from "@/components/inventory/AddStockDialog";
 import ItemDetailSheet from "@/components/inventory/ItemDetailSheet";
 import type { InventoryItem } from "@/components/inventory/ItemDetailSheet";
+import ImportExportMenu from "@/components/shared/ImportExportMenu";
 
 const inventory: InventoryItem[] = [
   { name: "Dolo 650mg", mfr: "Micro Labs", batch: "B102", expiry: "08/2026", hsn: "3004", mrp: 30, stock: 250, sgst: 6, cgst: 6, rack: "A1-03", status: "safe", purchasePrice: 22, supplier: "Micro Labs" },
@@ -52,9 +54,29 @@ const InventoryPage = () => {
           <h1 className="text-2xl font-bold text-foreground">Inventory Management</h1>
           <p className="text-sm text-muted-foreground">Track stock, batches, and expiry dates</p>
         </div>
-        <button onClick={() => setShowAdd(true)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md hover:opacity-90 transition-opacity">
-          <Plus className="h-4 w-4" /> Add Stock
-        </button>
+        <div className="flex items-center gap-2">
+          <ImportExportMenu
+            data={inventory}
+            columns={[
+              { key: "name", label: "Item Name" },
+              { key: "mfr", label: "Manufacturer" },
+              { key: "batch", label: "Batch" },
+              { key: "expiry", label: "Expiry" },
+              { key: "hsn", label: "HSN" },
+              { key: "mrp", label: "MRP" },
+              { key: "stock", label: "Stock" },
+              { key: "sgst", label: "SGST%" },
+              { key: "cgst", label: "CGST%" },
+              { key: "rack", label: "Rack" },
+              { key: "status", label: "Status" },
+            ]}
+            filenamePrefix="inventory_stock"
+            onImport={(rows) => toast.success(`${rows.length} stock items ready to process`)}
+          />
+          <button onClick={() => setShowAdd(true)} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-md hover:opacity-90 transition-opacity">
+            <Plus className="h-4 w-4" /> Add Stock
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

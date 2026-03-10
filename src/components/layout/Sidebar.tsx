@@ -14,6 +14,7 @@ const adminNavGroups = [
     items: [
       { label: "Dashboard", icon: LayoutDashboard, path: "/" },
       { label: "Billing (POS)", icon: Receipt, path: "/pos" },
+      { label: "Invoices", icon: FileText, path: "/invoices" },
     ],
   },
   {

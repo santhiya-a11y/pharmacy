@@ -78,6 +78,36 @@ const tabs: { key: TabKey; label: string; icon: any }[] = [
 const ReportsPage = () => {
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
 
+const handleExport = (tab: TabKey) => {
+    let csvContent = "";
+    const timestamp = new Date().toISOString().slice(0, 10);
+    let filename = `report_${tab}_${timestamp}`;
+
+    if (tab === "overview" || tab === "sales") {
+      csvContent = "Date,Sales,Returns,Net Sales,Profit\n" +
+        dailySales.map(d => {
+          const net = d.sales - d.returns;
+          const profit = Math.round(net * 0.25);
+          return `${d.date},${d.sales},${d.returns},${net},${profit}`;
+        }).join("\n");
+    } else if (tab === "gst") {
+      csvContent = "GST Slab,Taxable Amount,CGST,SGST,Total Tax\n" +
+        gstSummary.map(r => `${r.label},${r.taxable},${r.cgst},${r.sgst},${r.total}`).join("\n");
+    } else if (tab === "inventory") {
+      csvContent = "Category,Value\n" +
+        categoryData.map(c => `${c.name},${c.value}%`).join("\n");
+    }
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${filename}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${tab} report as CSV`);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -88,7 +118,10 @@ const ReportsPage = () => {
         </div>
         <div className="flex items-center gap-3">
           <DateRangeFilter />
-          <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity">
+          <button
+            onClick={() => handleExport(activeTab)}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+          >
             <Download className="h-4 w-4" /> Export
           </button>
         </div>

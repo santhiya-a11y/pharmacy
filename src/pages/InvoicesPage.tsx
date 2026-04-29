@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { format } from "date-fns";
 import { Search, Eye, Download, FileText, IndianRupee, TrendingUp, Receipt } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -131,11 +132,17 @@ const InvoicesPage = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [selected, setSelected] = useState<Invoice | null>(null);
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    from: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    to: new Date(),
+  });
 
   const { data: invoiceData, isLoading } = useInvoices({
     q: debouncedSearch.trim() || undefined,
     page: 1,
     pageSize: 50,
+    from: format(dateRange.from, "yyyy-MM-dd"),
+    to: format(dateRange.to, "yyyy-MM-dd"),
   });
 
   const invoices = useMemo(() => {
@@ -263,7 +270,7 @@ const InvoicesPage = () => {
             className="pl-10 bg-card border-border"
           />
         </div>
-        <DateRangeFilter />
+        <DateRangeFilter value={dateRange} onChange={setDateRange} />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[150px]">
             <SelectValue placeholder="All Statuses" />

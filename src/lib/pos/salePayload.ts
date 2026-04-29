@@ -43,6 +43,7 @@ export function buildPosSalePayload({
   paymentMode: string;
   loyaltyPointsRedeemed: number;
 }) {
+  const normalizedPhone = (customerPhone || "").replace(/\D/g, "").slice(0, 10);
   const lines = cart.map((c) => {
     if (c.isBag) {
       return {
@@ -74,7 +75,7 @@ export function buildPosSalePayload({
     counterId: counterId || undefined,
     customerId: selectedCustomer?.id != null ? String(selectedCustomer.id) : undefined,
     customerName: customerName?.trim() || "Walk-in",
-    customerPhone: customerPhone?.trim() || "",
+    customerPhone: normalizedPhone,
     lines,
     loyaltyPointsRedeemed,
     payments,

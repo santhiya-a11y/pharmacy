@@ -86,3 +86,18 @@ export async function postExpense(req, res, next) {
     next(e);
   }
 }
+
+export async function deleteExpense(req, res, next) {
+  try {
+    const deleted = await Expense.findByIdAndDelete(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({
+        success: false,
+        error: { code: "NOT_FOUND", message: "Expense not found" },
+      });
+    }
+    return res.json(success({ ok: true }));
+  } catch (e) {
+    next(e);
+  }
+}

@@ -99,6 +99,7 @@ r.get("/reports/inventory-intelligence", authMiddleware, roleMiddleware([Permiss
 
 r.get("/expenses", authMiddleware, roleMiddleware([Permissions.EXPENSE_VIEW]), expense.listExpenses);
 r.post("/expenses", authMiddleware, roleMiddleware([Permissions.EXPENSE_EDIT]), expense.postExpense);
+r.delete("/expenses/:id", authMiddleware, roleMiddleware([Permissions.EXPENSE_EDIT]), expense.deleteExpense);
 
 r.get("/activity-logs", authMiddleware, roleMiddleware([Permissions.ACTIVITY_VIEW]), activity.listActivity);
 

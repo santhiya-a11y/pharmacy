@@ -63,6 +63,18 @@ const CustomersPage = () => {
   const stats = (customerResponse?.meta as any)?.stats || { loyalty: 0, credit: 0, meds: 0, total: 0 };
   const { mutate: createCustomer, isPending: isSaving } = useCreateCustomer();
 
+  const openSmsComposer = (patient: any) => {
+    const phone = String(patient?.phone || "").replace(/\D/g, "");
+    if (phone.length < 10) {
+      toast.error("Customer phone number is invalid");
+      return;
+    }
+    const firstName = String(patient?.name || "Customer").split(" ")[0];
+    const message = `Hi ${firstName}, thank you for visiting PharmaCare. Reply here if you need refill support.`;
+    window.open(`sms:${phone}?body=${encodeURIComponent(message)}`, "_blank");
+    toast.success("Opening SMS app...");
+  };
+
   return (
     <div className="space-y-5 animate-fade-in">
       {/* Header */}
@@ -319,7 +331,14 @@ const CustomersPage = () => {
 
                   {/* Quick Actions */}
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="flex-1"><MessageSquare className="h-3.5 w-3.5 mr-1" />Send SMS</Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => openSmsComposer(selected)}
+                    >
+                      <MessageSquare className="h-3.5 w-3.5 mr-1" />Send SMS
+                    </Button>
                     <Button size="sm" variant="outline" className="flex-1"><Calendar className="h-3.5 w-3.5 mr-1" />Refill Reminder</Button>
                   </div>
                 </>

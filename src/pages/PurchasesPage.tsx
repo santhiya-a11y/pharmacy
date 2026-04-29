@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation } from "react-router-dom";
+import { format } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -132,6 +133,10 @@ const PurchasesPage = () => {
   const [paymentTarget, setPaymentTarget] = useState<PurchaseOrder | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("bank");
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    from: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    to: new Date(),
+  });
 
   // Receive Stock state
   const [showReceiveStock, setShowReceiveStock] = useState(false);
@@ -145,12 +150,15 @@ const PurchasesPage = () => {
   const [poPaymentTerms, setPoPaymentTerms] = useState("30 Days");
   const [poRemarks, setPoRemarks] = useState("");
   const [poDueDate, setPoDueDate] = useState("");
+  const [productSearch, setProductSearch] = useState("");
 
   // API Queries & Mutations
   const { data: poResponse, isLoading } = usePurchaseOrders({
     q: search || undefined,
     status: statusFilter === "all" ? undefined : statusFilter,
     paymentStatus: paymentFilter === "all" ? undefined : paymentFilter,
+    from: format(dateRange.from, "yyyy-MM-dd"),
+    to: format(dateRange.to, "yyyy-MM-dd"),
   });
 
   const { data: supplierResponse } = useSuppliers({ pageSize: 100 });
@@ -177,10 +185,23 @@ const PurchasesPage = () => {
   // Expiring/low stock items filtered by selected supplier
   const supplierExpiringItems = useMemo(() => {
     if (!poSupplier) return [];
-    const selectedSup = suppliersList.find((s: any) => s._id === poSupplier) as any;
+    const selectedSup = suppliersList.find((s: any) => String(s._id || s.id) === String(poSupplier)) as any;
     if (!selectedSup) return [];
     return inventoryData.filter(item => item.supplier === selectedSup.name && (item.status === "expiring" || item.status === "low"));
   }, [poSupplier, suppliersList]);
+
+  const productSuggestions = useMemo(() => {
+    const q = productSearch.trim().toLowerCase();
+    if (q.length < 2) return [];
+    const selectedSup = suppliersList.find((s: any) => String(s._id || s.id) === String(poSupplier)) as any;
+    const selectedSupplierName = selectedSup?.name;
+    const existingNames = new Set(poItems.map((i) => i.drug.trim().toLowerCase()).filter(Boolean));
+    return inventoryData
+      .filter((item) => item.name.toLowerCase().includes(q))
+      .filter((item) => !selectedSupplierName || item.supplier === selectedSupplierName)
+      .filter((item) => !existingNames.has(item.name.toLowerCase()))
+      .slice(0, 8);
+  }, [productSearch, poSupplier, suppliersList, poItems]);
 
   // PDF
   const printRef = useRef<HTMLDivElement>(null);
@@ -472,7 +493,7 @@ const PurchasesPage = () => {
 
       {/* Filters */}
       <div className="flex gap-2 flex-wrap">
-        <DateRangeFilter />
+        <DateRangeFilter value={dateRange} onChange={setDateRange} />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40 h-9"><SelectValue placeholder="Order Status" /></SelectTrigger>
           <SelectContent>
@@ -985,8 +1006,40 @@ const PurchasesPage = () => {
 
             {/* Line Items */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <Label className="text-xs font-semibold">Line Items</Label>
+                <div className="relative w-72">
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search product to add..."
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    className="h-8 pl-8 text-xs"
+                  />
+                  {productSuggestions.length > 0 && (
+                    <div className="absolute z-20 mt-1 w-full rounded-md border border-border bg-popover shadow-md max-h-56 overflow-y-auto">
+                      {productSuggestions.map((item) => (
+                        <button
+                          key={`${item.name}-${item.batch}`}
+                          type="button"
+                          onClick={() => {
+                            setPoItems((prev) => {
+                              const cleaned = prev.filter((p) => p.drug.trim() !== "");
+                              return [...cleaned, { drug: item.name, qty: 50, rate: item.purchasePrice }];
+                            });
+                            setProductSearch("");
+                          }}
+                          className="w-full px-3 py-2 text-left hover:bg-accent border-b border-border/50 last:border-b-0"
+                        >
+                          <p className="text-xs font-medium text-card-foreground">{item.name}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {item.supplier} • Stock: {item.stock} • ₹{item.purchasePrice}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={addPOItem}>
                   <Plus className="h-3 w-3" /> Add Item
                 </Button>

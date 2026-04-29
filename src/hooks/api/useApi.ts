@@ -238,6 +238,18 @@ export function useCreateExpense() {
     mutationFn: (body: Record<string, unknown>) => expensesApi.create(body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["expenses"] });
+      void qc.invalidateQueries({ queryKey: ["dashboard", "summary"] });
+    },
+  });
+}
+
+export function useDeleteExpense() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => expensesApi.remove(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["expenses"] });
+      void qc.invalidateQueries({ queryKey: ["dashboard", "summary"] });
     },
   });
 }

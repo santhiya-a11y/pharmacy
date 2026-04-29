@@ -35,6 +35,11 @@ import { useMemo } from "react";
 import { Loader2 } from "lucide-react";
 
 const SuppliersPage = () => {
+  const formatRating = (value: unknown) => {
+    const num = typeof value === "number" ? value : Number(value || 0);
+    return Number.isFinite(num) ? num.toFixed(1) : "0.0";
+  };
+
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [selected, setSelected] = useState<any | null>(null);
@@ -177,7 +182,7 @@ const SuppliersPage = () => {
                 </TableCell>
                 <TableCell className="text-sm"><span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-muted-foreground" />{sup.location || "—"}</span></TableCell>
                 <TableCell>
-                  <span className="flex items-center gap-1 text-sm"><Star className="h-3.5 w-3.5 text-warning fill-warning" />{sup.rating || 0}</span>
+                  <span className="flex items-center gap-1 text-sm"><Star className="h-3.5 w-3.5 text-warning fill-warning" />{formatRating(sup.rating)}</span>
                 </TableCell>
                 <TableCell className="text-sm">{sup.creditDays || 0}d</TableCell>
                 <TableCell className="text-sm text-right">
@@ -228,7 +233,7 @@ const SuppliersPage = () => {
               <div className="grid grid-cols-3 gap-2">
                 <div className="bg-muted rounded-lg p-3 text-center"><p className="text-lg font-bold">{selected.totalOrders || 0}</p><p className="text-[10px] text-muted-foreground">Orders</p></div>
                 <div className="bg-muted rounded-lg p-3 text-center"><p className="text-lg font-bold">₹{((selected.totalValue || 0) / 1000).toFixed(0)}K</p><p className="text-[10px] text-muted-foreground">Value</p></div>
-                <div className="bg-muted rounded-lg p-3 text-center"><p className="text-lg font-bold flex items-center justify-center gap-0.5"><Star className="h-4 w-4 text-warning fill-warning" />{selected.rating || 0}</p><p className="text-[10px] text-muted-foreground">Rating</p></div>
+                <div className="bg-muted rounded-lg p-3 text-center"><p className="text-lg font-bold flex items-center justify-center gap-0.5"><Star className="h-4 w-4 text-warning fill-warning" />{formatRating(selected.rating)}</p><p className="text-[10px] text-muted-foreground">Rating</p></div>
               </div>
               <Button className="w-full gap-2" onClick={() => { setSelected(null); openSendOrder(selected); }}>
                 <Send className="h-4 w-4" />Send Reorder Request

@@ -73,6 +73,11 @@ const paymentMethods = [
 ];
 
 const splitMethods = ["Cash", "UPI", "Card"];
+const CHECKOUT_TIMEOUT_MS = 20000;
+
+function normalizePhone10(input: string) {
+  return input.replace(/\D/g, "").slice(0, 10);
+}
 
 function mapApiCustomer(c: Record<string, unknown>): Customer {
   const id = c._id != null ? String(c._id) : String(c.id ?? "");
@@ -456,7 +461,12 @@ const POSBilling = () => {
         paymentMode,
         loyaltyPointsRedeemed: redeemPoints,
       });
-      const result = await posApi.checkout(payload, idem);
+      const result = await Promise.race([
+        posApi.checkout(payload, idem),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Checkout request timed out")), CHECKOUT_TIMEOUT_MS)
+        ),
+      ]);
       checkoutIdempotencyRef.current = null;
       const inv = result.invoice as Record<string, unknown> | undefined;
       if (inv?.invoiceNo) setInvoiceNo(String(inv.invoiceNo));
@@ -474,6 +484,10 @@ const POSBilling = () => {
         toast.error(err.message, { description: "Adjust split payments so they match the grand total." });
       } else if (isErrorCode(err, "NETWORK_ERROR")) {
         toast.error(err.message, { description: "Tap Complete again to retry with the same idempotency key." });
+      } else if (err.message === "Checkout request timed out") {
+        toast.error("Checkout is taking longer than expected", {
+          description: "Try Complete again. Duplicate billing is prevented via idempotency.",
+        });
       } else {
         toast.error(err.message);
       }
@@ -517,7 +531,7 @@ const POSBilling = () => {
   const handleCustomerSelect = (customer: Customer) => {
     setSelectedCustomer(customer);
     setCustomerName(customer.name);
-    setCustomerPhone(customer.phone);
+    setCustomerPhone(normalizePhone10(customer.phone));
     setRedeemPoints(0);
     toast.success(`Customer: ${customer.name}`);
   };
@@ -849,7 +863,7 @@ const POSBilling = () => {
               <Search className="h-3 w-3" /> Search
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2">
             <div className="space-y-1">
               <Label className="text-[10px] text-muted-foreground">Name</Label>
               <div className="relative">
@@ -878,8 +892,9 @@ const POSBilling = () => {
                   placeholder="Phone number"
                   value={customerPhone}
                   onChange={e => {
-                    setCustomerPhone(e.target.value);
-                    const match = customersInline.find(c => c.phone === e.target.value);
+                    const phone = normalizePhone10(e.target.value);
+                    setCustomerPhone(phone);
+                    const match = customersInline.find(c => normalizePhone10(c.phone) === phone);
                     if (match) {
                       setSelectedCustomer(match);
                       setCustomerName(match.name);
@@ -888,6 +903,8 @@ const POSBilling = () => {
                       setRedeemPoints(0);
                     }
                   }}
+                  inputMode="numeric"
+                  maxLength={10}
                   className="h-8 text-xs pl-7"
                 />
               </div>

@@ -43,7 +43,11 @@ export const posSaleBodySchema = z.object({
   counterId: z.string().optional(),
   customerId: z.string().optional(),
   customerName: z.string().optional(),
-  customerPhone: z.string().optional(),
+  customerPhone: z
+    .string()
+    .regex(/^\d{10}$/, "customerPhone must be exactly 10 digits")
+    .or(z.literal(""))
+    .optional(),
   lines: z.array(lineSchema).min(1),
   loyaltyPointsRedeemed: z.number().nonnegative().default(0),
   payments: z.array(paymentSchema).min(1),

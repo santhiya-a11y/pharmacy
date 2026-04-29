@@ -4,6 +4,10 @@ import { Product } from "../models/Product.js";
 import { Supplier } from "../models/Supplier.js";
 import { InventoryLog } from "../models/InventoryLog.js";
 import { AppError, ErrorCodes } from "../utils/errors.js";
+import { addDays, endOfDay, startOfDay } from "date-fns";
+
+const LOW_STOCK_THRESHOLD = 15;
+const EXPIRY_WINDOW_DAYS = 60;
 
 function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -11,15 +15,15 @@ function escapeRegex(s) {
 
 export async function listStock({ q, page = 1, pageSize = 20, sort = "createdAt:desc", type }) {
   let filter = { qtyOnHand: { $gt: 0 } };
+  const now = startOfDay(new Date());
+  const soon = endOfDay(addDays(now, EXPIRY_WINDOW_DAYS));
 
   if (type === "expired") {
-    filter.expiryDate = { $lt: new Date() };
+    filter.expiryDate = { $lt: now };
   } else if (type === "expiring") {
-    const soon = new Date();
-    soon.setDate(soon.getDate() + 60);
-    filter.expiryDate = { $gte: new Date(), $lte: soon };
+    filter.expiryDate = { $gte: now, $lte: soon };
   } else if (type === "low_stock") {
-    filter.qtyOnHand = { $gt: 0, $lte: 15 }; // Default threshold
+    filter.qtyOnHand = { $gt: 0, $lte: LOW_STOCK_THRESHOLD };
   } else if (type === "dead_stock") {
     const age = new Date();
     age.setDate(age.getDate() - 90);
@@ -158,9 +162,8 @@ export async function addStock(payload, userId) {
   return batch;
 }
 export async function summarizeInventory() {
-  const now = new Date();
-  const soon = new Date();
-  soon.setDate(soon.getDate() + 60);
+  const now = startOfDay(new Date());
+  const soon = endOfDay(addDays(now, EXPIRY_WINDOW_DAYS));
 
   const age = new Date();
   age.setDate(age.getDate() - 90);
@@ -168,7 +171,7 @@ export async function summarizeInventory() {
   const [totalSkus, expiringSoon, lowStock, expired, deadStock, expiredValue] = await Promise.all([
     Product.countDocuments(),
     ProductBatch.countDocuments({ expiryDate: { $gte: now, $lte: soon }, qtyOnHand: { $gt: 0 } }),
-    ProductBatch.countDocuments({ qtyOnHand: { $gt: 0, $lte: 15 } }),
+    ProductBatch.countDocuments({ qtyOnHand: { $gt: 0, $lte: LOW_STOCK_THRESHOLD } }),
     ProductBatch.countDocuments({ expiryDate: { $lt: now }, qtyOnHand: { $gt: 0 } }),
     ProductBatch.countDocuments({ createdAt: { $lt: age }, qtyOnHand: { $gt: 50 } }),
     ProductBatch.aggregate([

@@ -3,14 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Plus, Wallet, TrendingUp, Receipt, Building2, Zap, Users } from "lucide-react";
+import { Search, Plus, Wallet, TrendingUp, Receipt, Building2, Zap, Users, Trash2 } from "lucide-react";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
-import { useExpenses, useCreateExpense } from "@/hooks/api/useApi";
+import { useExpenses, useCreateExpense, useDeleteExpense } from "@/hooks/api/useApi";
 import { useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import { format } from "date-fns";
@@ -39,6 +39,7 @@ const ExpensesPage = () => {
   const { data: expenseData, isLoading } = useExpenses(queryParams);
 
   const { mutate: createExpense, isPending: isSaving } = useCreateExpense();
+  const { mutate: deleteExpense, isPending: isDeleting } = useDeleteExpense();
 
   const expenses = useMemo(() => (expenseData?.rows as any[]) || [], [expenseData]);
   const summary = (expenseData?.meta as any)?.summary;
@@ -165,12 +166,13 @@ const ExpensesPage = () => {
                   <TableHead className="text-xs">Description</TableHead>
                   <TableHead className="text-xs">Paid To</TableHead>
                   <TableHead className="text-xs text-right">Amount</TableHead>
+                  <TableHead className="text-xs text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12 text-sm text-muted-foreground italic">
+                    <TableCell colSpan={7} className="text-center py-12 text-sm text-muted-foreground italic">
                       No expenses found.
                     </TableCell>
                   </TableRow>
@@ -183,6 +185,23 @@ const ExpensesPage = () => {
                       <TableCell className="text-sm">{exp.description}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{exp.paidTo}</TableCell>
                       <TableCell className="text-sm text-right font-semibold">₹{(exp.amount || 0).toLocaleString()}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={isDeleting}
+                          onClick={() => {
+                            const ok = window.confirm(`Delete expense ${exp.expenseCode || exp._id}?`);
+                            if (!ok) return;
+                            deleteExpense(exp._id, {
+                              onSuccess: () => toast.success("Expense deleted"),
+                              onError: () => toast.error("Failed to delete expense"),
+                            });
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}

@@ -12,10 +12,12 @@ import { useQuery } from "@tanstack/react-query";
 import { authApi } from "@/lib/api/endpoints";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 export const TopHeader = () => {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const [globalSearch, setGlobalSearch] = useState("");
   const { data: user } = useQuery({
     queryKey: ["auth", "me"],
     queryFn: () => authApi.me(),
@@ -31,20 +33,70 @@ export const TopHeader = () => {
     ? user.name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
     : "??";
 
+  const runGlobalSearch = () => {
+    const q = globalSearch.trim().toLowerCase();
+    if (!q) return;
+    if (q.startsWith("customer") || q.includes("cust") || /^\d{3,}$/.test(q)) {
+      navigate("/customers");
+      return;
+    }
+    if (q.startsWith("supplier") || q.includes("vendor")) {
+      navigate("/suppliers");
+      return;
+    }
+    if (q.startsWith("invoice") || q.startsWith("inv") || q.includes("bill")) {
+      navigate("/invoices");
+      return;
+    }
+    if (q.startsWith("purchase") || q.startsWith("po")) {
+      navigate("/purchases");
+      return;
+    }
+    if (q.includes("stock") || q.includes("inventory")) {
+      navigate("/inventory");
+      return;
+    }
+    navigate("/medicines");
+  };
+
+  const handleNotificationsClick = () => {
+    navigate("/activity");
+  };
+
   return (
     <header className="flex h-16 items-center justify-between border-b border-border bg-card px-6">
       {/* Search */}
       <div className="relative w-full max-w-md">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors hover:text-primary" />
+        <button
+          type="button"
+          onClick={runGlobalSearch}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-primary"
+          aria-label="Run global search"
+        >
+          <Search className="h-4 w-4" />
+        </button>
         <Input
           placeholder="Search medicines, customers, invoices..."
+          value={globalSearch}
+          onChange={(e) => setGlobalSearch(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              runGlobalSearch();
+            }
+          }}
           className="pl-10 bg-secondary border-0 h-10 text-sm focus-visible:ring-1 focus-visible:ring-primary shadow-none"
         />
       </div>
 
       {/* Right side */}
       <div className="flex items-center gap-4">
-        <button className="relative rounded-lg p-2.5 hover:bg-secondary transition-all group">
+        <button
+          type="button"
+          onClick={handleNotificationsClick}
+          className="relative rounded-lg p-2.5 hover:bg-secondary transition-all group"
+          aria-label="Open notifications"
+        >
           <Bell className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
           <span className="absolute top-2 right-2 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground ring-2 ring-card shadow-sm">
             3

@@ -107,6 +107,7 @@ export const expensesApi = {
   list: (params?: { page?: number; pageSize?: number }) =>
     unwrapList<unknown>(client.get("/expenses", { params })),
   create: (body: Record<string, unknown>) => postReq<unknown>("/expenses", body),
+  remove: (id: string) => delReq<{ ok: boolean }>(`/expenses/${encodeURIComponent(id)}`),
 };
 
 export const activityApi = {

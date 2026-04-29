@@ -42,14 +42,44 @@ export async function listPurchases(req, res, next) {
   try {
     const page = Number(req.query.page) || 1;
     const pageSize = Number(req.query.pageSize) || 20;
+    const q = String(req.query.q || "").trim();
+    const status = String(req.query.status || "").trim();
+    const paymentStatus = String(req.query.paymentStatus || "").trim();
+    const { from, to } = req.query;
+
+    const filter = {};
+    if (q) {
+      const rx = new RegExp(q, "i");
+      filter.$or = [
+        { poNumber: rx },
+        { supplierName: rx },
+        { "items.drug": rx },
+      ];
+    }
+    if (status) {
+      filter.status = status;
+    }
+    if (paymentStatus) {
+      filter.paymentStatus = paymentStatus;
+    }
+    if (from || to) {
+      filter.date = {};
+      if (from) filter.date.$gte = new Date(from);
+      if (to) {
+        const end = new Date(to);
+        end.setHours(23, 59, 59, 999);
+        filter.date.$lte = end;
+      }
+    }
+
     const [data, total] = await Promise.all([
-      PurchaseOrder.find()
+      PurchaseOrder.find(filter)
         .populate("supplierId", "name")
         .sort({ createdAt: -1 })
         .skip((page - 1) * pageSize)
         .limit(pageSize)
         .lean(),
-      PurchaseOrder.countDocuments(),
+      PurchaseOrder.countDocuments(filter),
     ]);
     return res.json(success(data, { page, pageSize, total }));
   } catch (e) {

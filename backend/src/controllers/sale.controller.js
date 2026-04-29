@@ -6,15 +6,26 @@ export async function listInvoices(req, res, next) {
     const page = Number(req.query.page) || 1;
     const pageSize = Number(req.query.pageSize) || 20;
     const q = req.query.q?.trim();
-    const filter = q
-      ? {
-          $or: [
-            { invoiceNo: new RegExp(q, "i") },
-            { customerName: new RegExp(q, "i") },
-            { customerPhone: new RegExp(q, "i") },
-          ],
-        }
-      : {};
+    const { from, to } = req.query;
+    const filter = {};
+
+    if (q) {
+      filter.$or = [
+        { invoiceNo: new RegExp(q, "i") },
+        { customerName: new RegExp(q, "i") },
+        { customerPhone: new RegExp(q, "i") },
+      ];
+    }
+    if (from || to) {
+      filter.date = {};
+      if (from) filter.date.$gte = new Date(from);
+      if (to) {
+        const end = new Date(to);
+        end.setHours(23, 59, 59, 999);
+        filter.date.$lte = end;
+      }
+    }
+
     const [rows, total] = await Promise.all([
       Sale.find(filter)
         .sort({ createdAt: -1 })

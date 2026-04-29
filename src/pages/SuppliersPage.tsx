@@ -30,33 +30,44 @@ interface Supplier {
   outstandingAmount: number;
 }
 
-const suppliers: Supplier[] = [
-  { id: "SUP-001", name: "MedPharma Distributors", contactPerson: "Rajesh Kumar", phone: "9876543210", whatsapp: "919876543210", email: "orders@medpharma.in", location: "Mumbai", gst: "27AABCM1234L1Z5", rating: 4.5, totalOrders: 45, totalValue: 285000, creditDays: 30, categories: ["Tablets", "Capsules", "Syrups"], lastOrder: "Mar 4, 2026", outstandingAmount: 12500 },
-  { id: "SUP-002", name: "HealthCare Supplies", contactPerson: "Anita Desai", phone: "9988776655", whatsapp: "919988776655", email: "supply@healthcare.in", location: "Pune", gst: "27AABCH5678M1Z3", rating: 4.2, totalOrders: 28, totalValue: 156000, creditDays: 15, categories: ["Insulin", "Surgical", "Devices"], lastOrder: "Mar 5, 2026", outstandingAmount: 0 },
-  { id: "SUP-003", name: "Generic Meds Ltd.", contactPerson: "Suresh Patel", phone: "8877665544", whatsapp: "918877665544", email: "purchase@genericmeds.in", location: "Ahmedabad", gst: "24AABCG9012N1Z1", rating: 3.8, totalOrders: 62, totalValue: 420000, creditDays: 45, categories: ["Generic Tablets", "OTC"], lastOrder: "Mar 6, 2026", outstandingAmount: 34200 },
-  { id: "SUP-004", name: "BioLife Pharma", contactPerson: "Meera Shah", phone: "7766554433", email: "orders@biolife.in", location: "Delhi", gst: "07AABCB3456P1Z7", rating: 4.8, totalOrders: 15, totalValue: 98000, creditDays: 21, categories: ["Vaccines", "Biologics"], lastOrder: "Feb 28, 2026", outstandingAmount: 8000 },
-];
+import { useSuppliers, useCreateSupplier } from "@/hooks/api/useApi";
+import { useMemo } from "react";
+import { Loader2 } from "lucide-react";
 
 const SuppliersPage = () => {
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
-  const [selected, setSelected] = useState<Supplier | null>(null);
+  const [selected, setSelected] = useState<any | null>(null);
   const [showSendOrder, setShowSendOrder] = useState(false);
-  const [sendTarget, setSendTarget] = useState<Supplier | null>(null);
+  const [sendTarget, setSendTarget] = useState<any | null>(null);
   const [orderMessage, setOrderMessage] = useState("");
   const [copiedMsg, setCopiedMsg] = useState(false);
+  const [newSup, setNewSup] = useState({ name: "", contactPerson: "", phone: "", whatsapp: "", email: "", gst: "", creditDays: "0", location: "" });
 
-  const filtered = suppliers.filter(s =>
-    !search || s.name.toLowerCase().includes(search.toLowerCase()) || s.contactPerson.toLowerCase().includes(search.toLowerCase()) || s.id.toLowerCase().includes(search.toLowerCase())
-  );
+  const { data: supplierResponse, isLoading } = useSuppliers({
+    page: 1,
+    pageSize: 100,
+  });
 
-  const totalOutstanding = suppliers.reduce((s, su) => s + su.outstandingAmount, 0);
+  const supplierList = useMemo(() => {
+    return (supplierResponse?.rows as any[]) || [];
+  }, [supplierResponse]);
 
-  const openSendOrder = (supplier: Supplier, items?: string) => {
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return supplierList.filter(s =>
+      !q || s.name?.toLowerCase().includes(q) || s.contactPerson?.toLowerCase().includes(q) || s.id?.toLowerCase().includes(q)
+    );
+  }, [supplierList, search]);
+
+  const stats = (supplierResponse?.meta as any)?.stats || { total: 0, orders: 0, rating: "0.0", value: 0, outstanding: 0 };
+  const { mutate: createSupplier, isPending: isSaving } = useCreateSupplier();
+
+  const openSendOrder = (supplier: any, items?: string) => {
     setSendTarget(supplier);
     const defaultItems = items || "1. Paracetamol 500mg - 200 strips\n2. Amoxicillin 250mg - 100 strips\n3. Cetirizine 10mg - 150 strips";
     setOrderMessage(
-      `Dear ${supplier.contactPerson},\n\nPlease arrange the following medicines at the earliest:\n\n${defaultItems}\n\nKindly confirm availability and delivery date.\n\nThanks,\nPharmaCare Medical Store`
+      `Dear ${supplier.contactPerson || "Supplier"},\n\nPlease arrange the following medicines at the earliest:\n\n${defaultItems}\n\nKindly confirm availability and delivery date.\n\nThanks,\nPharmaCare Medical Store`
     );
     setShowSendOrder(true);
   };
@@ -88,7 +99,7 @@ const SuppliersPage = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">Supplier Directory</h1>
-          <p className="text-sm text-muted-foreground">{suppliers.length} registered suppliers</p>
+          <p className="text-sm text-muted-foreground">{isLoading ? "…" : supplierList.length} registered suppliers</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative w-64">
@@ -101,11 +112,11 @@ const SuppliersPage = () => {
 
       <div className="grid grid-cols-5 gap-3">
         {[
-          { label: "Active Suppliers", value: suppliers.length, icon: Truck, color: "text-primary" },
-          { label: "Total Orders", value: suppliers.reduce((s, su) => s + su.totalOrders, 0), icon: IndianRupee, color: "text-chart-2" },
-          { label: "Avg. Rating", value: (suppliers.reduce((s, su) => s + su.rating, 0) / suppliers.length).toFixed(1), icon: Star, color: "text-warning" },
-          { label: "Total Value", value: `₹${(suppliers.reduce((s, su) => s + su.totalValue, 0) / 1000).toFixed(0)}K`, icon: IndianRupee, color: "text-primary" },
-          { label: "Outstanding", value: `₹${(totalOutstanding / 1000).toFixed(1)}K`, icon: IndianRupee, color: "text-destructive" },
+          { label: "Active Suppliers", value: isLoading ? "…" : stats.total, icon: Truck, color: "text-primary" },
+          { label: "Total Orders", value: isLoading ? "…" : stats.orders, icon: IndianRupee, color: "text-chart-2" },
+          { label: "Avg. Rating", value: isLoading ? "…" : stats.rating, icon: Star, color: "text-warning" },
+          { label: "Total Value", value: isLoading ? "…" : `₹${(stats.value / 1000).toFixed(0)}K`, icon: IndianRupee, color: "text-primary" },
+          { label: "Outstanding", value: isLoading ? "…" : `₹${(stats.outstanding / 1000).toFixed(1)}K`, icon: IndianRupee, color: "text-destructive" },
         ].map((s, i) => (
           <Card key={i}>
             <CardContent className="flex items-center gap-3 p-4">
@@ -134,28 +145,43 @@ const SuppliersPage = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map(sup => (
-              <TableRow key={sup.id} className="cursor-pointer hover:bg-muted/50">
-                <TableCell className="text-xs font-mono text-muted-foreground">{sup.id}</TableCell>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-12">
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-6 w-6 animate-spin" />
+                    <p className="text-xs">Loading suppliers...</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-12 text-sm text-muted-foreground italic">
+                  No suppliers found.
+                </TableCell>
+              </TableRow>
+            ) : filtered.map((sup: any) => (
+              <TableRow key={sup.id || sup._id || sup.supplierCode} className="cursor-pointer hover:bg-muted/50">
+                <TableCell className="text-xs font-mono text-muted-foreground">{sup.supplierCode || sup.id || "—"}</TableCell>
                 <TableCell onClick={() => setSelected(sup)}>
                   <p className="text-sm font-semibold">{sup.name}</p>
-                  <p className="text-[10px] text-muted-foreground">GST: {sup.gst}</p>
+                  <p className="text-[10px] text-muted-foreground">GST: {sup.gst || "N/A"}</p>
                 </TableCell>
                 <TableCell onClick={() => setSelected(sup)}>
-                  <p className="text-sm">{sup.contactPerson}</p>
+                  <p className="text-sm">{sup.contactPerson || "—"}</p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><Phone className="h-2.5 w-2.5" />{sup.phone}</span>
+                    <span className="text-[10px] text-muted-foreground flex items-center gap-0.5"><Phone className="h-2.5 w-2.5" />{sup.phone || "—"}</span>
                     {sup.whatsapp && <MessageCircle className="h-3 w-3 text-chart-2" />}
                     {sup.email && <Mail className="h-3 w-3 text-primary" />}
                   </div>
                 </TableCell>
-                <TableCell className="text-sm"><span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-muted-foreground" />{sup.location}</span></TableCell>
+                <TableCell className="text-sm"><span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-muted-foreground" />{sup.location || "—"}</span></TableCell>
                 <TableCell>
-                  <span className="flex items-center gap-1 text-sm"><Star className="h-3.5 w-3.5 text-warning fill-warning" />{sup.rating}</span>
+                  <span className="flex items-center gap-1 text-sm"><Star className="h-3.5 w-3.5 text-warning fill-warning" />{sup.rating || 0}</span>
                 </TableCell>
-                <TableCell className="text-sm">{sup.creditDays}d</TableCell>
+                <TableCell className="text-sm">{sup.creditDays || 0}d</TableCell>
                 <TableCell className="text-sm text-right">
-                  {sup.outstandingAmount > 0 ? (
+                  {(sup.outstandingAmount || 0) > 0 ? (
                     <span className="font-semibold text-destructive">₹{sup.outstandingAmount.toLocaleString()}</span>
                   ) : (
                     <span className="text-chart-2 font-medium">Cleared</span>
@@ -177,32 +203,32 @@ const SuppliersPage = () => {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{selected?.name}</DialogTitle>
-            <DialogDescription>{selected?.id} · {selected?.location}</DialogDescription>
+            <DialogDescription>{selected?.supplierCode || selected?.id || "SUP-XXX"} · {selected?.location || "N/A"}</DialogDescription>
           </DialogHeader>
           {selected && (
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-muted rounded-lg p-3">
                   <p className="text-[10px] text-muted-foreground">Contact</p>
-                  <p className="text-sm font-semibold">{selected.contactPerson}</p>
-                  <p className="text-xs text-muted-foreground">{selected.phone}</p>
+                  <p className="text-sm font-semibold">{selected.contactPerson || "—"}</p>
+                  <p className="text-xs text-muted-foreground">{selected.phone || "—"}</p>
                   {selected.whatsapp && <p className="text-xs text-chart-2 flex items-center gap-1 mt-0.5"><MessageCircle className="h-3 w-3" />WhatsApp: +{selected.whatsapp}</p>}
                   {selected.email && <p className="text-xs text-primary flex items-center gap-1 mt-0.5"><Mail className="h-3 w-3" />{selected.email}</p>}
                 </div>
                 <div className="bg-muted rounded-lg p-3">
                   <p className="text-[10px] text-muted-foreground">Credit Terms</p>
-                  <p className="text-sm font-semibold">{selected.creditDays} days</p>
-                  <p className="text-xs text-muted-foreground">GST: {selected.gst}</p>
-                  {selected.outstandingAmount > 0 && (
+                  <p className="text-sm font-semibold">{selected.creditDays || 0} days</p>
+                  <p className="text-xs text-muted-foreground">GST: {selected.gst || "N/A"}</p>
+                  {(selected.outstandingAmount || 0) > 0 && (
                     <p className="text-xs text-destructive font-semibold mt-0.5">Outstanding: ₹{selected.outstandingAmount.toLocaleString()}</p>
                   )}
                 </div>
               </div>
-              <div><p className="text-xs font-semibold mb-1.5">Categories</p><div className="flex gap-1.5 flex-wrap">{selected.categories.map(c => <Badge key={c} variant="secondary" className="text-[10px]">{c}</Badge>)}</div></div>
+              <div><p className="text-xs font-semibold mb-1.5">Categories</p><div className="flex gap-1.5 flex-wrap">{(selected.categories || []).map((c: string) => <Badge key={c} variant="secondary" className="text-[10px]">{c}</Badge>)}</div></div>
               <div className="grid grid-cols-3 gap-2">
-                <div className="bg-muted rounded-lg p-3 text-center"><p className="text-lg font-bold">{selected.totalOrders}</p><p className="text-[10px] text-muted-foreground">Orders</p></div>
-                <div className="bg-muted rounded-lg p-3 text-center"><p className="text-lg font-bold">₹{(selected.totalValue / 1000).toFixed(0)}K</p><p className="text-[10px] text-muted-foreground">Value</p></div>
-                <div className="bg-muted rounded-lg p-3 text-center"><p className="text-lg font-bold flex items-center justify-center gap-0.5"><Star className="h-4 w-4 text-warning fill-warning" />{selected.rating}</p><p className="text-[10px] text-muted-foreground">Rating</p></div>
+                <div className="bg-muted rounded-lg p-3 text-center"><p className="text-lg font-bold">{selected.totalOrders || 0}</p><p className="text-[10px] text-muted-foreground">Orders</p></div>
+                <div className="bg-muted rounded-lg p-3 text-center"><p className="text-lg font-bold">₹{((selected.totalValue || 0) / 1000).toFixed(0)}K</p><p className="text-[10px] text-muted-foreground">Value</p></div>
+                <div className="bg-muted rounded-lg p-3 text-center"><p className="text-lg font-bold flex items-center justify-center gap-0.5"><Star className="h-4 w-4 text-warning fill-warning" />{selected.rating || 0}</p><p className="text-[10px] text-muted-foreground">Rating</p></div>
               </div>
               <Button className="w-full gap-2" onClick={() => { setSelected(null); openSendOrder(selected); }}>
                 <Send className="h-4 w-4" />Send Reorder Request
@@ -228,7 +254,7 @@ const SuppliersPage = () => {
             {/* Supplier Info Bar */}
             <div className="flex items-center gap-3 bg-muted rounded-lg p-3">
               <div className="flex-1">
-                <p className="text-sm font-semibold">{sendTarget?.contactPerson}</p>
+                <p className="text-sm font-semibold">{sendTarget?.contactPerson || "Supplier"}</p>
                 <div className="flex items-center gap-3 mt-0.5">
                   {sendTarget?.whatsapp && <span className="text-[11px] text-chart-2 flex items-center gap-1"><MessageCircle className="h-3 w-3" />+{sendTarget.whatsapp}</span>}
                   {sendTarget?.email && <span className="text-[11px] text-primary flex items-center gap-1"><Mail className="h-3 w-3" />{sendTarget.email}</span>}
@@ -278,25 +304,65 @@ const SuppliersPage = () => {
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Add Supplier</DialogTitle><DialogDescription>Register a new supplier</DialogDescription></DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5"><Label className="text-xs">Company Name *</Label><Input className="h-9" /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><Label className="text-xs">Contact Person *</Label><Input className="h-9" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Phone *</Label><Input className="h-9" /></div>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Company Name *</Label>
+              <Input required className="h-9" value={newSup.name} onChange={e => setNewSup(p => ({ ...p, name: e.target.value }))} />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><Label className="text-xs">WhatsApp Number</Label><Input className="h-9" placeholder="e.g. 919876543210" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Email</Label><Input type="email" className="h-9" /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Contact Person *</Label><Input required className="h-9" value={newSup.contactPerson} onChange={e => setNewSup(p => ({ ...p, contactPerson: e.target.value }))} /></div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Phone *</Label>
+                <Input 
+                  required 
+                  type="tel"
+                  maxLength={10}
+                  placeholder="10-digit mobile"
+                  className="h-9" 
+                  value={newSup.phone} 
+                  onChange={e => setNewSup(p => ({ ...p, phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))} 
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><Label className="text-xs">GST Number</Label><Input className="h-9" /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Credit Days</Label><Input type="number" className="h-9" /></div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">WhatsApp Number</Label>
+                <Input 
+                  type="tel"
+                  maxLength={12}
+                  placeholder="e.g. 919876543210" 
+                  className="h-9" 
+                  value={newSup.whatsapp} 
+                  onChange={e => setNewSup(p => ({ ...p, whatsapp: e.target.value.replace(/\D/g, "").slice(0, 12) }))} 
+                />
+              </div>
+              <div className="space-y-1.5"><Label className="text-xs">Email</Label><Input type="email" placeholder="email@example.com" className="h-9" value={newSup.email} onChange={e => setNewSup(p => ({ ...p, email: e.target.value }))} /></div>
             </div>
-            <div className="space-y-1.5"><Label className="text-xs">Location</Label><Input className="h-9" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5"><Label className="text-xs">GST Number</Label><Input className="h-9" value={newSup.gst} onChange={e => setNewSup(p => ({ ...p, gst: e.target.value }))} /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Credit Days</Label><Input type="number" className="h-9" value={newSup.creditDays} onChange={e => setNewSup(p => ({ ...p, creditDays: e.target.value }))} /></div>
+            </div>
+            <div className="space-y-1.5"><Label className="text-xs">Location</Label><Input className="h-9" value={newSup.location} onChange={e => setNewSup(p => ({ ...p, location: e.target.value }))} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button size="sm" onClick={() => { setShowAdd(false); toast.success("Supplier added"); }}>Save Supplier</Button>
+            <Button size="sm" disabled={isSaving} onClick={() => {
+              if (!newSup.name.trim()) return toast.error("Company name is required");
+              if (!newSup.contactPerson.trim()) return toast.error("Contact person is required");
+              if (newSup.phone.length < 10) return toast.error("Please enter a valid 10-digit phone number");
+              
+              createSupplier(newSup, {
+                onSuccess: () => {
+                  setShowAdd(false);
+                  setNewSup({ name: "", contactPerson: "", phone: "", whatsapp: "", email: "", gst: "", creditDays: "0", location: "" });
+                  toast.success("Supplier added successfully");
+                },
+                onError: (err: any) => toast.error(err.message || "Failed to add supplier")
+              });
+            }}>
+              {isSaving && <Loader2 className="h-3 w-3 animate-spin mr-2" />}
+              Save Supplier
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

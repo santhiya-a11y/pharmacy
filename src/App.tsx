@@ -3,8 +3,11 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import { RoleProvider } from "./contexts/RoleContext";
 import AppLayout from "./components/layout/AppLayout";
+import LoginPage from "./pages/LoginPage";
 import Dashboard from "./pages/Dashboard";
 import POSBilling from "./pages/POSBilling";
 
@@ -12,6 +15,7 @@ import InventoryPage from "./pages/InventoryPage";
 import InvoicesPage from "./pages/InvoicesPage";
 import ReportsPage from "./pages/ReportsPage";
 import StaffPage from "./pages/StaffPage";
+import MedicinesPage from "./pages/MedicinesPage";
 
 import CustomersPage from "./pages/CustomersPage";
 import PurchasesPage from "./pages/PurchasesPage";
@@ -25,38 +29,71 @@ import CountersPage from "./pages/CountersPage";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      refetchOnWindowFocus: true,
+      retry: (count, err) => {
+        const code = err && typeof err === "object" && "code" in err ? String((err as { code: string }).code) : "";
+        if (code === "UNAUTHORIZED" || code === "FORBIDDEN") return false;
+        return count < 2;
+      },
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <RoleProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<AppLayout><Dashboard /></AppLayout>} />
-            <Route path="/pos" element={<POSBilling />} />
-            
-            <Route path="/inventory" element={<AppLayout><InventoryPage /></AppLayout>} />
-            <Route path="/invoices" element={<AppLayout><InvoicesPage /></AppLayout>} />
-            <Route path="/purchases" element={<AppLayout><PurchasesPage /></AppLayout>} />
-            <Route path="/suppliers" element={<AppLayout><SuppliersPage /></AppLayout>} />
-            <Route path="/customers" element={<AppLayout><CustomersPage /></AppLayout>} />
-            
-            <Route path="/expiry" element={<AppLayout><StockAlertsPage /></AppLayout>} />
-            <Route path="/returns" element={<AppLayout><ReturnsPage /></AppLayout>} />
-            <Route path="/reports" element={<AppLayout><ReportsPage /></AppLayout>} />
-            <Route path="/expenses" element={<AppLayout><ExpensesPage /></AppLayout>} />
-            <Route path="/staff" element={<AppLayout><StaffPage /></AppLayout>} />
-            <Route path="/counters" element={<AppLayout><CountersPage /></AppLayout>} />
-            <Route path="/activity" element={<AppLayout><ActivityLogPage /></AppLayout>} />
-            <Route path="/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
-            <Route path="/employee" element={<AppLayout><EmployeeDashboard /></AppLayout>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </RoleProvider>
+      <AuthProvider>
+        <RoleProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <AppLayout>
+                      <Dashboard />
+                    </AppLayout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/pos"
+                element={
+                  <ProtectedRoute>
+                    <POSBilling />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route path="/medicines" element={<ProtectedRoute><AppLayout><MedicinesPage /></AppLayout></ProtectedRoute>} />
+
+              <Route path="/inventory" element={<ProtectedRoute><AppLayout><InventoryPage /></AppLayout></ProtectedRoute>} />
+              <Route path="/invoices" element={<ProtectedRoute><AppLayout><InvoicesPage /></AppLayout></ProtectedRoute>} />
+              <Route path="/purchases" element={<ProtectedRoute><AppLayout><PurchasesPage /></AppLayout></ProtectedRoute>} />
+              <Route path="/suppliers" element={<ProtectedRoute><AppLayout><SuppliersPage /></AppLayout></ProtectedRoute>} />
+              <Route path="/customers" element={<ProtectedRoute><AppLayout><CustomersPage /></AppLayout></ProtectedRoute>} />
+
+              <Route path="/expiry" element={<ProtectedRoute><AppLayout><StockAlertsPage /></AppLayout></ProtectedRoute>} />
+              <Route path="/returns" element={<ProtectedRoute><AppLayout><ReturnsPage /></AppLayout></ProtectedRoute>} />
+              <Route path="/reports" element={<ProtectedRoute><AppLayout><ReportsPage /></AppLayout></ProtectedRoute>} />
+              <Route path="/expenses" element={<ProtectedRoute><AppLayout><ExpensesPage /></AppLayout></ProtectedRoute>} />
+              <Route path="/staff" element={<ProtectedRoute><AppLayout><StaffPage /></AppLayout></ProtectedRoute>} />
+              <Route path="/counters" element={<ProtectedRoute><AppLayout><CountersPage /></AppLayout></ProtectedRoute>} />
+              <Route path="/activity" element={<ProtectedRoute><AppLayout><ActivityLogPage /></AppLayout></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsPage /></AppLayout></ProtectedRoute>} />
+              <Route path="/employee" element={<ProtectedRoute><AppLayout><EmployeeDashboard /></AppLayout></ProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </RoleProvider>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

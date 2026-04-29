@@ -2,8 +2,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, MapPin, Package, ClipboardList, Calendar, Building2, Hash, Pill, TrendingDown } from "lucide-react";
+import { getExpiryBadgeInfo } from "@/lib/expiry";
 
 export interface InventoryItem {
+  id?: string;
   name: string;
   mfr: string;
   batch: string;
@@ -27,17 +29,6 @@ interface ItemDetailSheetProps {
   isInReorder: boolean;
 }
 
-const getExpiryInfo = (expiry: string) => {
-  const [mm, yyyy] = expiry.split("/").map(Number);
-  const exp = new Date(yyyy, mm - 1);
-  const now = new Date();
-  const months = (exp.getFullYear() - now.getFullYear()) * 12 + (exp.getMonth() - now.getMonth());
-  if (months < 0) return { level: "expired", months: Math.abs(months), text: "Already Expired", color: "bg-destructive/10 text-destructive border-destructive/30" };
-  if (months <= 3) return { level: "critical", months, text: `Expires in ${months} month(s)`, color: "bg-destructive/10 text-destructive border-destructive/30" };
-  if (months <= 6) return { level: "warning", months, text: `Expires in ${months} months`, color: "bg-warning/10 text-warning border-warning/30" };
-  return { level: "safe", months, text: `Expires in ${months} months`, color: "bg-chart-2/10 text-chart-2 border-chart-2/30" };
-};
-
 const statusConfig: Record<string, { label: string; class: string }> = {
   safe: { label: "In Stock", class: "bg-chart-2/10 text-chart-2 border-chart-2/30" },
   expiring: { label: "Expiring Soon", class: "bg-warning/10 text-warning border-warning/30" },
@@ -48,8 +39,10 @@ const statusConfig: Record<string, { label: string; class: string }> = {
 const ItemDetailSheet = ({ item, open, onClose, onAddToReorder, isInReorder }: ItemDetailSheetProps) => {
   if (!item) return null;
 
-  const expiryInfo = getExpiryInfo(item.expiry);
-  const needsReorder = item.status === "low" || item.status === "expiring" || expiryInfo.level !== "safe";
+  const expiryInfo = getExpiryBadgeInfo(item.expiry);
+  const expiryUrgent =
+    expiryInfo.level === "expired" || expiryInfo.level === "critical" || expiryInfo.level === "warning";
+  const needsReorder = item.status === "low" || item.status === "expiring" || expiryUrgent;
   const estimatedValue = item.mrp * item.stock;
   const margin = item.purchasePrice
     ? (((item.mrp - item.purchasePrice) / item.mrp) * 100).toFixed(1)
@@ -95,7 +88,7 @@ const ItemDetailSheet = ({ item, open, onClose, onAddToReorder, isInReorder }: I
                 }`} />
                 <div>
                   <p className="text-sm font-semibold text-card-foreground">
-                    {item.status === "low" && expiryInfo.level !== "safe"
+                    {item.status === "low" && expiryUrgent
                       ? "Low Stock & Expiring Soon"
                       : item.status === "low"
                       ? "Stock Running Low"
@@ -132,7 +125,7 @@ const ItemDetailSheet = ({ item, open, onClose, onAddToReorder, isInReorder }: I
           <div className="grid grid-cols-2 gap-3">
             <DetailCard icon={Package} label="Current Stock" value={`${item.stock} units`} highlight={item.stock < 10} />
             <DetailCard icon={Hash} label="Batch No." value={item.batch} />
-            <DetailCard icon={Calendar} label="Expiry" value={item.expiry} highlight={expiryInfo.level !== "safe"} />
+            <DetailCard icon={Calendar} label="Expiry" value={item.expiry} highlight={expiryUrgent} />
             <DetailCard icon={MapPin} label="Rack Location" value={item.rack} />
           </div>
 

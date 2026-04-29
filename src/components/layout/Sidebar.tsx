@@ -21,6 +21,7 @@ const adminNavGroups = [
     label: "Inventory",
     items: [
       { label: "Stock", icon: Warehouse, path: "/inventory" },
+      { label: "Medicines", icon: Pill, path: "/medicines" },
       { label: "Purchases", icon: Package, path: "/purchases" },
       { label: "Returns", icon: RotateCcw, path: "/returns" },
       { label: "Suppliers", icon: Truck, path: "/suppliers" },
@@ -35,7 +36,7 @@ const adminNavGroups = [
   {
     label: "Operations",
     items: [
-      { label: "Counters", icon: Receipt, path: "/counters" },
+      // { label: "Counters", icon: Receipt, path: "/counters" },
       { label: "Staff", icon: UserCog, path: "/staff" },
       { label: "Expenses", icon: Wallet, path: "/expenses" },
       { label: "Activity Log", icon: Activity, path: "/activity" },
@@ -118,7 +119,7 @@ export const Sidebar = () => {
                   <p className="text-[10px] opacity-60">Full access to all modules</p>
                 </div>
               </button>
-              <button
+              {/* <button
                 onClick={() => handleRoleSwitch("employee")}
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-sm transition-colors ${role === "employee" ? "bg-success/10 text-success font-semibold" : "text-muted-foreground hover:bg-secondary"}`}
               >
@@ -127,7 +128,7 @@ export const Sidebar = () => {
                   <p>Employee View</p>
                   <p className="text-[10px] opacity-60">Attendance & daily tasks</p>
                 </div>
-              </button>
+              </button> */}
             </div>
           </>
         )}

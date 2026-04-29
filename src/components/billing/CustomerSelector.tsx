@@ -7,13 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Search, User, Phone, MapPin, Plus } from "lucide-react";
 
 export interface Customer {
-  id: number;
+  id: number | string;
   name: string;
   phone: string;
   address: string;
   type: "regular" | "vip" | "credit";
   balance?: number;
   lastVisit: string;
+  loyaltyPoints?: number;
 }
 
 const SAMPLE_CUSTOMERS: Customer[] = [
@@ -29,6 +30,8 @@ interface CustomerSelectorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (customer: Customer) => void;
+  /** When provided, replaces built-in sample list (e.g. API-backed). */
+  customers?: Customer[];
 }
 
 const typeColors: Record<string, string> = {
@@ -37,15 +40,16 @@ const typeColors: Record<string, string> = {
   credit: "bg-chart-3/10 text-chart-3",
 };
 
-const CustomerSelector = ({ open, onOpenChange, onSelect }: CustomerSelectorProps) => {
+const CustomerSelector = ({ open, onOpenChange, onSelect, customers }: CustomerSelectorProps) => {
   const [search, setSearch] = useState("");
+  const source = customers ?? SAMPLE_CUSTOMERS;
 
   const filtered = search.length > 0
-    ? SAMPLE_CUSTOMERS.filter(c =>
+    ? source.filter(c =>
         c.name.toLowerCase().includes(search.toLowerCase()) ||
         c.phone.includes(search)
       )
-    : SAMPLE_CUSTOMERS;
+    : source;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

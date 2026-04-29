@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   X, Phone, Mail, Clock, Shield, Calendar, Upload, FileText, Trash2, Eye, Edit2, Save, Plus,
   MapPin, User, GraduationCap, BadgeCheck, CreditCard
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 interface StaffMember {
   id: string;
@@ -34,29 +35,22 @@ interface StaffMember {
   idType?: string;
   idNumber?: string;
   photo?: string;
+  employeeCode?: string;
+  _id?: string;
+  documents?: Document[];
 }
 
 interface Document {
   id: string;
+  _id?: string;
   name: string;
   type: string;
   uploadedAt: string;
   size: string;
 }
 
-const mockDocuments: Document[] = [
-  { id: "1", name: "Aadhar Card", type: "Identity", uploadedAt: "Jan 15, 2024", size: "1.2 MB" },
-  { id: "2", name: "Pharmacy License", type: "License", uploadedAt: "Feb 10, 2024", size: "845 KB" },
-  { id: "3", name: "PAN Card", type: "Identity", uploadedAt: "Jan 15, 2024", size: "620 KB" },
-];
-
-const attendanceData = [
-  { date: "Mar 9", status: "present", checkIn: "09:02 AM", checkOut: "06:15 PM", hours: "9h 13m" },
-  { date: "Mar 8", status: "present", checkIn: "08:55 AM", checkOut: "06:30 PM", hours: "9h 35m" },
-  { date: "Mar 7", status: "late", checkIn: "10:20 AM", checkOut: "06:00 PM", hours: "7h 40m" },
-  { date: "Mar 6", status: "present", checkIn: "09:00 AM", checkOut: "06:00 PM", hours: "9h 00m" },
-  { date: "Mar 5", status: "absent", checkIn: "-", checkOut: "-", hours: "-" },
-];
+import { useStaffAttendance, useAddStaffDocument, useDeleteStaffDocument } from "@/hooks/api/useApi";
+import { Loader2 } from "lucide-react";
 
 const statusColors: Record<string, string> = {
   present: "bg-success/10 text-success",
@@ -80,33 +74,53 @@ const InfoRow = ({ icon: Icon, label, value }: { icon: any; label: string; value
 );
 
 const StaffDetailPanel = ({ member, onClose }: Props) => {
-  const [activeTab, setActiveTab] = useState<"overview" | "documents" | "attendance">("overview");
-  const [documents, setDocuments] = useState<Document[]>(mockDocuments);
+  const [activeTab, setActiveTab] = useState<"overview" | "documents">("overview");
   const [showAddDoc, setShowAddDoc] = useState(false);
   const [newDocName, setNewDocName] = useState("");
   const [newDocType, setNewDocType] = useState("");
+
+  const { mutate: addDoc, isPending: isAddingDoc } = useAddStaffDocument();
+  const { mutate: deleteDoc } = useDeleteStaffDocument();
+
+  const documents = useMemo(() => member.documents || [], [member.documents]);
 
   const isPharmacist = member.role === "Pharmacist" || member.role === "Admin";
 
   const handleAddDocument = () => {
     if (!newDocName.trim()) return;
-    const doc: Document = {
-      id: Date.now().toString(),
-      name: newDocName,
-      type: newDocType || "Other",
-      uploadedAt: new Date().toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }),
-      size: "—",
-    };
-    setDocuments(prev => [...prev, doc]);
-    setNewDocName("");
-    setNewDocType("");
-    setShowAddDoc(false);
-    toast.success("Document added");
+    addDoc(
+      {
+        id: member._id!,
+        body: {
+          name: newDocName,
+          type: newDocType || "Other",
+          size: "1.2 MB",
+        },
+      },
+      {
+        onSuccess: () => {
+          setNewDocName("");
+          setNewDocType("");
+          setShowAddDoc(false);
+          toast.success("Document added successfully");
+        },
+        onError: (err: any) => {
+          toast.error(err.message || "Failed to add document");
+        },
+      }
+    );
   };
 
   const handleDeleteDoc = (id: string) => {
-    setDocuments(prev => prev.filter(d => d.id !== id));
-    toast.success("Document removed");
+    if (window.confirm("Are you sure you want to remove this document?")) {
+      deleteDoc(
+        { id: member._id!, docId: id },
+        {
+          onSuccess: () => toast.success("Document removed"),
+          onError: (err: any) => toast.error(err.message || "Failed to remove document"),
+        }
+      );
+    }
   };
 
   const licenseExpiring = (() => {
@@ -122,7 +136,6 @@ const StaffDetailPanel = ({ member, onClose }: Props) => {
   const tabs = [
     { key: "overview" as const, label: "Overview" },
     { key: "documents" as const, label: `Documents (${documents.length})` },
-    { key: "attendance" as const, label: "Attendance" },
   ];
 
   return (
@@ -145,9 +158,11 @@ const StaffDetailPanel = ({ member, onClose }: Props) => {
                 {member.status === "active" ? "Active" : "Inactive"}
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground">{member.role} · {member.id}</p>
+            <p className="text-sm text-muted-foreground">{member.role} · {member.employeeCode || member.id}</p>
             {member.gender && member.dob && (
-              <p className="text-xs text-muted-foreground mt-0.5">{member.gender} · DOB: {new Date(member.dob).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {member.gender} · DOB: {format(new Date(member.dob), "dd MMM yyyy")}
+              </p>
             )}
           </div>
           <button onClick={onClose} className="rounded-lg p-2 hover:bg-secondary transition-colors">
@@ -192,7 +207,7 @@ const StaffDetailPanel = ({ member, onClose }: Props) => {
                   <div className="space-y-3">
                     <InfoRow icon={Shield} label="Role" value={member.role} />
                     <InfoRow icon={Clock} label="Shift" value={`${member.shift} Shift`} />
-                    <InfoRow icon={Calendar} label="Joined" value={member.joinDate} />
+                    <InfoRow icon={Calendar} label="Joined" value={member.joinDate ? format(new Date(member.joinDate), "dd MMM yyyy") : "—"} />
                   </div>
                 </div>
               </div>
@@ -218,8 +233,8 @@ const StaffDetailPanel = ({ member, onClose }: Props) => {
                   <div className="grid grid-cols-2 gap-4">
                     <InfoRow icon={BadgeCheck} label="Registration No." value={member.regNumber} />
                     <InfoRow icon={Shield} label="Pharmacy Council" value={member.pharmacyCouncil} />
-                    <InfoRow icon={Calendar} label="Issue Date" value={member.licenseIssue ? new Date(member.licenseIssue).toLocaleDateString("en-IN") : undefined} />
-                    <InfoRow icon={Calendar} label="Expiry Date" value={member.licenseExpiry ? new Date(member.licenseExpiry).toLocaleDateString("en-IN") : undefined} />
+                    <InfoRow icon={Calendar} label="Issue Date" value={member.licenseIssue ? format(new Date(member.licenseIssue), "dd MMM yyyy") : "—"} />
+                    <InfoRow icon={Calendar} label="Expiry Date" value={member.licenseExpiry ? format(new Date(member.licenseExpiry), "dd MMM yyyy") : "—"} />
                   </div>
                 </div>
               )}
@@ -283,7 +298,10 @@ const StaffDetailPanel = ({ member, onClose }: Props) => {
                   </div>
                   <div className="flex justify-end gap-2">
                     <Button size="sm" variant="ghost" onClick={() => setShowAddDoc(false)}>Cancel</Button>
-                    <Button size="sm" onClick={handleAddDocument} className="gap-1"><Save className="h-3.5 w-3.5" /> Save</Button>
+                    <Button size="sm" onClick={handleAddDocument} className="gap-1" disabled={isAddingDoc}>
+                      {isAddingDoc ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                      {isAddingDoc ? "Saving..." : "Save"}
+                    </Button>
                   </div>
                 </div>
               )}
@@ -296,12 +314,14 @@ const StaffDetailPanel = ({ member, onClose }: Props) => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-card-foreground">{doc.name}</p>
-                      <p className="text-[11px] text-muted-foreground">{doc.type} · {doc.size} · Uploaded {doc.uploadedAt}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {doc.type} · {doc.size} · Uploaded {format(new Date(doc.uploadedAt), "MMM dd, yyyy")}
+                      </p>
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button className="rounded-md p-1.5 hover:bg-secondary transition-colors" title="View"><Eye className="h-3.5 w-3.5 text-muted-foreground" /></button>
                       <button className="rounded-md p-1.5 hover:bg-secondary transition-colors" title="Edit"><Edit2 className="h-3.5 w-3.5 text-muted-foreground" /></button>
-                      <button onClick={() => handleDeleteDoc(doc.id)} className="rounded-md p-1.5 hover:bg-destructive/10 transition-colors" title="Remove"><Trash2 className="h-3.5 w-3.5 text-destructive" /></button>
+                      <button onClick={() => handleDeleteDoc(doc._id || doc.id)} className="rounded-md p-1.5 hover:bg-destructive/10 transition-colors" title="Remove"><Trash2 className="h-3.5 w-3.5 text-destructive" /></button>
                     </div>
                   </div>
                 ))}
@@ -315,51 +335,6 @@ const StaffDetailPanel = ({ member, onClose }: Props) => {
             </>
           )}
 
-          {activeTab === "attendance" && (
-            <>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-xl border border-border p-3 text-center">
-                  <p className="text-xl font-bold text-success">22</p>
-                  <p className="text-[10px] text-muted-foreground">Days Present</p>
-                </div>
-                <div className="rounded-xl border border-border p-3 text-center">
-                  <p className="text-xl font-bold text-warning">2</p>
-                  <p className="text-[10px] text-muted-foreground">Late Arrivals</p>
-                </div>
-                <div className="rounded-xl border border-border p-3 text-center">
-                  <p className="text-xl font-bold text-destructive">1</p>
-                  <p className="text-[10px] text-muted-foreground">Absences</p>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-border overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/50">
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Date</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Status</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Check In</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Check Out</th>
-                      <th className="px-4 py-2.5 text-right text-xs font-semibold text-muted-foreground">Hours</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {attendanceData.map((row, i) => (
-                      <tr key={i} className="border-b border-border last:border-0">
-                        <td className="px-4 py-2.5 text-sm font-medium text-card-foreground">{row.date}</td>
-                        <td className="px-4 py-2.5">
-                          <Badge className={`text-[10px] capitalize ${statusColors[row.status] || "bg-muted text-muted-foreground"} border-0`}>{row.status}</Badge>
-                        </td>
-                        <td className="px-4 py-2.5 text-sm text-muted-foreground">{row.checkIn}</td>
-                        <td className="px-4 py-2.5 text-sm text-muted-foreground">{row.checkOut}</td>
-                        <td className="px-4 py-2.5 text-sm font-medium text-right text-card-foreground">{row.hours}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
         </div>
       </div>
     </div>

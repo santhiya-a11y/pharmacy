@@ -6,7 +6,16 @@ const topMedicines = [
   { name: "Amoxicillin 250mg", sold: 120, revenue: "₹6,000", profit: "₹1,680", margin: 28 },
 ];
 
-export const TopSellingTable = () => {
+export type TopSellingRow = {
+  name: string;
+  sold: number;
+  revenue: string;
+  profit: string;
+  margin: number;
+};
+
+export const TopSellingTable = ({ rows }: { rows?: TopSellingRow[] }) => {
+  const list = rows?.length ? rows : topMedicines;
   return (
     <div className="rounded-xl border border-border bg-card p-6 animate-fade-in">
       <h3 className="text-lg font-semibold text-card-foreground mb-4">Top Selling Medicines</h3>
@@ -22,7 +31,7 @@ export const TopSellingTable = () => {
             </tr>
           </thead>
           <tbody>
-            {topMedicines.map((med, i) => (
+            {list.map((med, i) => (
               <tr key={i} className="border-b border-border/50 last:border-0">
                 <td className="py-3 font-medium text-card-foreground">{med.name}</td>
                 <td className="py-3 text-right text-muted-foreground">{med.sold}</td>

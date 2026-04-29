@@ -1,26 +1,41 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRole } from "@/contexts/RoleContext";
-import { useAttendance } from "@/hooks/useAttendance";
+import { useAttendanceMe, useClockIn, useClockOut } from "@/hooks/api/useApi";
 import {
   Clock, LogIn, LogOut, CalendarDays, TrendingUp,
-  CheckCircle2, AlertCircle, Coffee, Timer
+  CheckCircle2, AlertCircle, Coffee, Timer, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 const EmployeeDashboard = () => {
   const { currentUser } = useRole();
-  const { clockedIn, clockInTime, clockOutTime, clockIn, clockOut, getEmployeeRecords } = useAttendance();
-  const myRecords = getEmployeeRecords(currentUser.employeeId);
+  const { data: records = [], isLoading } = useAttendanceMe();
+  const { mutate: clockIn, isPending: isInProgress } = useClockIn();
+  const { mutate: clockOut, isPending: isOutProgress } = useClockOut();
+  
   const [showConfirm, setShowConfirm] = useState(false);
 
   const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
   const greeting = today.getHours() < 12 ? "Good Morning" : today.getHours() < 17 ? "Good Afternoon" : "Good Evening";
 
-  const presentDays = myRecords.filter(r => r.status === "present").length;
-  const totalDays = myRecords.length;
-  const attendanceRate = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
-  const totalHours = myRecords.reduce((sum, r) => sum + (r.hoursWorked || 0), 0);
+  // Determine current status from records
+  const todayRecord = useMemo(() => (records as any[]).find(r => r.date === todayStr), [records, todayStr]);
+  const isClockedIn = !!(todayRecord && todayRecord.clockIn && !todayRecord.clockOut);
+  const clockInTime = todayRecord?.clockIn || null;
+  const clockOutTime = todayRecord?.clockOut || null;
+
+  // Stats calculation
+  const stats = useMemo(() => {
+    const history = (records as any[]) || [];
+    const present = history.filter(r => r.status === "present" || r.status === "late").length;
+    const total = Math.max(history.length, 1);
+    const hours = history.reduce((sum, r) => sum + (r.hoursWorked || 0), 0);
+    const late = history.filter(r => r.status === "late").length;
+    return { present, total, rate: Math.round((present / total) * 100), hours, late };
+  }, [records]);
 
   const statusConfig: Record<string, { color: string; icon: typeof CheckCircle2 }> = {
     present: { color: "bg-success/15 text-success border-success/30", icon: CheckCircle2 },
@@ -30,12 +45,32 @@ const EmployeeDashboard = () => {
   };
 
   const handleClockAction = () => {
-    if (clockedIn) {
+    if (isClockedIn) {
       setShowConfirm(true);
     } else {
-      clockIn();
+      clockIn(undefined, {
+        onSuccess: () => toast.success("Clocked in successfully"),
+        onError: (err: any) => toast.error(err.message || "Failed to clock in")
+      });
     }
   };
+
+  const confirmClockOut = () => {
+    clockOut(undefined, {
+      onSuccess: () => toast.success("Clocked out successfully"),
+      onError: (err: any) => toast.error(err.message || "Failed to clock out")
+    });
+    setShowConfirm(false);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-96 flex-col items-center justify-center gap-4 text-muted-foreground">
+        <Loader2 className="h-10 w-10 animate-spin text-primary/40" />
+        <p className="text-sm font-medium animate-pulse">Syncing attendance records...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -43,7 +78,7 @@ const EmployeeDashboard = () => {
       <div className="rounded-2xl border border-border bg-card p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">{greeting}, {currentUser.name.split(" ")[0]} 👋</h1>
+            <h1 className="text-2xl font-bold text-foreground">{greeting}, {currentUser?.name?.split(" ")[0] || "User"} 👋</h1>
             <p className="text-sm text-muted-foreground mt-1">
               {today.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
             </p>
@@ -65,20 +100,21 @@ const EmployeeDashboard = () => {
             <Button
               size="lg"
               onClick={handleClockAction}
+              disabled={isInProgress || isOutProgress}
               className={`gap-2 rounded-xl px-6 text-base font-bold shadow-lg transition-all duration-300 ${
-                clockedIn
+                isClockedIn
                   ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
                   : "bg-success hover:bg-success/90 text-success-foreground"
               }`}
             >
-              {clockedIn ? <LogOut className="h-5 w-5" /> : <LogIn className="h-5 w-5" />}
-              {clockedIn ? "Clock Out" : "Clock In"}
+              {(isInProgress || isOutProgress) ? <Loader2 className="h-5 w-5 animate-spin" /> : isClockedIn ? <LogOut className="h-5 w-5" /> : <LogIn className="h-5 w-5" />}
+              {isClockedIn ? "Clock Out" : "Clock In"}
             </Button>
           </div>
         </div>
 
         {/* Live Timer when clocked in */}
-        {clockedIn && (
+        {isClockedIn && (
           <div className="mt-4 flex items-center gap-2 rounded-lg bg-success/10 border border-success/20 px-4 py-2.5">
             <Timer className="h-4 w-4 text-success animate-pulse" />
             <span className="text-sm font-medium text-success">You're currently on shift</span>
@@ -94,28 +130,28 @@ const EmployeeDashboard = () => {
             <CalendarDays className="h-4 w-4 text-primary" />
             <p className="text-xs text-muted-foreground font-medium">Days Present</p>
           </div>
-          <p className="text-2xl font-bold text-card-foreground">{presentDays}<span className="text-sm text-muted-foreground font-normal">/{totalDays}</span></p>
+          <p className="text-2xl font-bold text-card-foreground">{stats.present}<span className="text-sm text-muted-foreground font-normal">/{stats.total}</span></p>
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp className="h-4 w-4 text-success" />
             <p className="text-xs text-muted-foreground font-medium">Attendance Rate</p>
           </div>
-          <p className="text-2xl font-bold text-card-foreground">{attendanceRate}%</p>
+          <p className="text-2xl font-bold text-card-foreground">{stats.rate}%</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 mb-2">
             <Clock className="h-4 w-4 text-warning" />
-            <p className="text-xs text-muted-foreground font-medium">Hours This Week</p>
+            <p className="text-xs text-muted-foreground font-medium">Hours (30d)</p>
           </div>
-          <p className="text-2xl font-bold text-card-foreground">{totalHours.toFixed(1)}</p>
+          <p className="text-2xl font-bold text-card-foreground">{stats.hours.toFixed(1)}</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex items-center gap-2 mb-2">
             <AlertCircle className="h-4 w-4 text-destructive" />
             <p className="text-xs text-muted-foreground font-medium">Late Arrivals</p>
           </div>
-          <p className="text-2xl font-bold text-card-foreground">{myRecords.filter(r => r.status === "late").length}</p>
+          <p className="text-2xl font-bold text-card-foreground">{stats.late}</p>
         </div>
       </div>
 
@@ -123,15 +159,17 @@ const EmployeeDashboard = () => {
       <div className="rounded-2xl border border-border bg-card">
         <div className="border-b border-border px-5 py-4">
           <h2 className="text-base font-bold text-card-foreground">My Attendance History</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Last 7 days</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Last 30 days</p>
         </div>
         <div className="divide-y divide-border">
-          {myRecords.slice().reverse().map((record) => {
-            const cfg = statusConfig[record.status];
+          {records.length === 0 ? (
+            <div className="py-20 text-center text-sm text-muted-foreground italic">No attendance records found</div>
+          ) : (records as any[]).map((record) => {
+            const cfg = statusConfig[record.status] || statusConfig.present;
             const Icon = cfg.icon;
             const dateObj = new Date(record.date);
             return (
-              <div key={record.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-secondary/30 transition-colors">
+              <div key={record._id} className="flex items-center justify-between px-5 py-3.5 hover:bg-secondary/30 transition-colors">
                 <div className="flex items-center gap-3">
                   <div className="text-center w-12">
                     <p className="text-lg font-bold text-card-foreground leading-none">{dateObj.getDate()}</p>
@@ -144,7 +182,7 @@ const EmployeeDashboard = () => {
                         {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
                       </Badge>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">{record.shift} Shift</p>
+                    <p className="text-xs text-muted-foreground mt-1">{record.shift || "General"} Shift</p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -152,7 +190,7 @@ const EmployeeDashboard = () => {
                     {record.clockIn || "—"} → {record.clockOut || "—"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {record.hoursWorked ? `${record.hoursWorked}h worked` : "No data"}
+                    {record.hoursWorked ? `${record.hoursWorked}h worked` : "In progress..."}
                   </p>
                 </div>
               </div>
@@ -174,7 +212,8 @@ const EmployeeDashboard = () => {
             </div>
             <div className="mt-6 flex gap-3">
               <Button variant="outline" className="flex-1" onClick={() => setShowConfirm(false)}>Cancel</Button>
-              <Button className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground" onClick={() => { clockOut(); setShowConfirm(false); }}>
+              <Button className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground" onClick={confirmClockOut} disabled={isOutProgress}>
+                {isOutProgress ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Confirm Clock Out
               </Button>
             </div>

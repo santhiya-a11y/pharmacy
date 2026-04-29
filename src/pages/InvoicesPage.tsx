@@ -31,10 +31,11 @@ interface InvoiceItem {
 
 interface Invoice {
   id: string;
+  invoiceNo: string;
   date: string;
   time: string;
-  customer: string;
-  phone: string;
+  customerName: string;
+  customerPhone: string;
   paymentMode: "Cash" | "UPI" | "Card" | "Split";
   items: InvoiceItem[];
   subtotal: number;
@@ -42,23 +43,23 @@ interface Invoice {
   cgstTotal: number;
   discount: number;
   grandTotal: number;
-  counter: string;
-  billedBy: string;
-  status: "completed" | "returned" | "partial-return";
+  counterName: string;
+  billedByName: string;
+  status: "completed" | "returned" | "partial-return" | "void";
 }
 
 const sampleInvoices: Invoice[] = [
   {
-    id: "INV-MMK4L0QV", date: "Mar 9, 2026", time: "09:44 pm", customer: "Walk-in", phone: "-",
-    paymentMode: "Cash", counter: "Counter 1", billedBy: "Priya",
+    id: "65eaf1", invoiceNo: "INV-MMK4L0QV", date: "Mar 9, 2026", time: "09:44 pm", customerName: "Walk-in", customerPhone: "-",
+    paymentMode: "Cash", counterName: "Counter 1", billedByName: "Priya",
     items: [
       { name: "Dolo 650mg", mfr: "Micro Labs", batch: "B102", expiry: "08/2026", hsn: "30049099", mrp: 30, qty: 1, sgst: 1.80, cgst: 1.80, disc: 0, amount: 33.60 },
     ],
     subtotal: 30.00, sgstTotal: 1.80, cgstTotal: 1.80, discount: 0, grandTotal: 33.60, status: "completed",
   },
   {
-    id: "INV-AB12XY9Z", date: "Mar 9, 2026", time: "04:15 pm", customer: "Rajesh Kumar", phone: "9876543210",
-    paymentMode: "UPI", counter: "Counter 1", billedBy: "Priya",
+    id: "65eaf2", invoiceNo: "INV-AB12XY9Z", date: "Mar 9, 2026", time: "04:15 pm", customerName: "Rajesh Kumar", customerPhone: "9876543210",
+    paymentMode: "UPI", counterName: "Counter 1", billedByName: "Priya",
     items: [
       { name: "Azithromycin 500mg", mfr: "Cipla Ltd", batch: "A45", expiry: "12/2026", hsn: "30049099", mrp: 100, qty: 3, sgst: 18.00, cgst: 18.00, disc: 0, amount: 336.00 },
       { name: "Cetirizine 10mg", mfr: "Dr. Reddy's", batch: "C78", expiry: "04/2026", hsn: "30049099", mrp: 30, qty: 10, sgst: 18.00, cgst: 18.00, disc: 5, amount: 321.00 },
@@ -66,16 +67,16 @@ const sampleInvoices: Invoice[] = [
     subtotal: 600.00, sgstTotal: 36.00, cgstTotal: 36.00, discount: 15.00, grandTotal: 657.00, status: "completed",
   },
   {
-    id: "INV-CD34PQ7W", date: "Mar 8, 2026", time: "11:30 am", customer: "Sunita Devi", phone: "9123456789",
-    paymentMode: "Card", counter: "Counter 2", billedBy: "Amit",
+    id: "65eaf3", invoiceNo: "INV-CD34PQ7W", date: "Mar 8, 2026", time: "11:30 am", customerName: "Sunita Devi", customerPhone: "9123456789",
+    paymentMode: "Card", counterName: "Counter 2", billedByName: "Amit",
     items: [
       { name: "Metformin 500mg", mfr: "USV Ltd", batch: "M90", expiry: "11/2026", hsn: "30049099", mrp: 25, qty: 60, sgst: 37.50, cgst: 37.50, disc: 0, amount: 1575.00 },
     ],
     subtotal: 1500.00, sgstTotal: 37.50, cgstTotal: 37.50, discount: 0, grandTotal: 1575.00, status: "completed",
   },
   {
-    id: "INV-EF56RS3T", date: "Mar 8, 2026", time: "02:00 pm", customer: "Vikram Singh", phone: "9988776655",
-    paymentMode: "Split", counter: "Counter 1", billedBy: "Priya",
+    id: "65eaf4", invoiceNo: "INV-EF56RS3T", date: "Mar 8, 2026", time: "02:00 pm", customerName: "Vikram Singh", customerPhone: "9988776655",
+    paymentMode: "Split", counterName: "Counter 1", billedByName: "Priya",
     items: [
       { name: "Pantoprazole 40mg", mfr: "Sun Pharma", batch: "P12", expiry: "06/2026", hsn: "30049099", mrp: 60, qty: 5, sgst: 18.00, cgst: 18.00, disc: 0, amount: 336.00 },
       { name: "Amoxicillin 250mg", mfr: "GSK Pharma", batch: "AM33", expiry: "05/2026", hsn: "30049099", mrp: 50, qty: 10, sgst: 30.00, cgst: 30.00, disc: 10, amount: 510.00 },
@@ -83,16 +84,16 @@ const sampleInvoices: Invoice[] = [
     subtotal: 800.00, sgstTotal: 48.00, cgstTotal: 48.00, discount: 50.00, grandTotal: 846.00, status: "partial-return",
   },
   {
-    id: "INV-GH78UV1X", date: "Mar 7, 2026", time: "10:00 am", customer: "Anita Sharma", phone: "9876501234",
-    paymentMode: "Cash", counter: "Counter 1", billedBy: "Priya",
+    id: "65eaf5", invoiceNo: "INV-GH78UV1X", date: "Mar 7, 2026", time: "10:00 am", customerName: "Anita Sharma", customerPhone: "9876501234",
+    paymentMode: "Cash", counterName: "Counter 1", billedByName: "Priya",
     items: [
       { name: "Dolo 650mg", mfr: "Micro Labs", batch: "B102", expiry: "08/2026", hsn: "30049099", mrp: 30, qty: 5, sgst: 9.00, cgst: 9.00, disc: 0, amount: 168.00 },
     ],
     subtotal: 150.00, sgstTotal: 9.00, cgstTotal: 9.00, discount: 0, grandTotal: 168.00, status: "returned",
   },
   {
-    id: "INV-IJ90WX5Y", date: "Mar 7, 2026", time: "03:30 pm", customer: "Walk-in", phone: "-",
-    paymentMode: "UPI", counter: "Counter 2", billedBy: "Amit",
+    id: "65eaf6", invoiceNo: "INV-IJ90WX5Y", date: "Mar 7, 2026", time: "03:30 pm", customerName: "Walk-in", customerPhone: "-",
+    paymentMode: "UPI", counterName: "Counter 2", billedByName: "Amit",
     items: [
       { name: "Cetirizine 10mg", mfr: "Dr. Reddy's", batch: "C78", expiry: "04/2026", hsn: "30049099", mrp: 30, qty: 2, sgst: 3.60, cgst: 3.60, disc: 0, amount: 67.20 },
       { name: "Azithromycin 500mg", mfr: "Cipla Ltd", batch: "A45", expiry: "12/2026", hsn: "30049099", mrp: 100, qty: 1, sgst: 6.00, cgst: 6.00, disc: 0, amount: 112.00 },
@@ -101,10 +102,14 @@ const sampleInvoices: Invoice[] = [
   },
 ];
 
+import { useInvoices } from "@/hooks/api/useApi";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+
 const statusStyles: Record<string, string> = {
   completed: "bg-chart-2/10 text-chart-2",
-  returned: "bg-destructive/10 text-destructive",
+  returned: "bg-destructive text-destructive-foreground font-bold",
   "partial-return": "bg-warning/10 text-warning",
+  void: "bg-muted text-muted-foreground",
 };
 
 const statusLabels: Record<string, string> = {
@@ -122,22 +127,39 @@ const paymentStyles: Record<string, string> = {
 
 const InvoicesPage = () => {
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 300);
   const [statusFilter, setStatusFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [selected, setSelected] = useState<Invoice | null>(null);
 
+  const { data: invoiceData, isLoading } = useInvoices({
+    q: debouncedSearch.trim() || undefined,
+    page: 1,
+    pageSize: 50,
+  });
+
+  const invoices = useMemo(() => {
+    const rows = (invoiceData?.rows as any[]) || [];
+    return rows.map(r => ({
+      ...r,
+      id: r._id,
+      invoiceNo: r.invoiceNo,
+      date: r.date ? new Date(r.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "-",
+      time: r.date ? new Date(r.date).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true }) : "-",
+      customerName: r.customerName || "Walk-in",
+      customerPhone: r.customerPhone || "-",
+      counterName: r.counterName || "-",
+      billedByName: r.billedByName || "-",
+    }));
+  }, [invoiceData]);
+
   const filtered = useMemo(() => {
-    return sampleInvoices.filter(inv => {
-      const matchSearch = search === "" ||
-        inv.id.toLowerCase().includes(search.toLowerCase()) ||
-        inv.customer.toLowerCase().includes(search.toLowerCase()) ||
-        inv.phone.includes(search) ||
-        inv.items.some(i => i.name.toLowerCase().includes(search.toLowerCase()));
+    return invoices.filter(inv => {
       const matchStatus = statusFilter === "all" || inv.status === statusFilter;
       const matchPayment = paymentFilter === "all" || inv.paymentMode === paymentFilter;
-      return matchSearch && matchStatus && matchPayment;
+      return matchStatus && matchPayment;
     });
-  }, [search, statusFilter, paymentFilter]);
+  }, [invoices, statusFilter, paymentFilter]);
 
   const totals = useMemo(() => ({
     count: filtered.length,
@@ -294,17 +316,26 @@ const InvoicesPage = () => {
               filtered.map(inv => (
                 <TableRow
                   key={inv.id}
-                  className="cursor-pointer hover:bg-accent/30 transition-colors"
+                  className={`cursor-pointer transition-colors ${inv.status === 'returned' ? 'bg-destructive/5' : 'hover:bg-accent/30'}`}
                   onClick={() => setSelected(inv)}
                 >
-                  <TableCell className="font-mono font-medium text-primary">{inv.id}</TableCell>
+                  <TableCell className="font-mono font-medium text-primary">
+                    <div className="flex flex-col gap-1">
+                      {inv.invoiceNo}
+                      {inv.status === "returned" && (
+                        <span className="inline-flex items-center text-[9px] font-bold text-destructive uppercase">
+                          Return Processed
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="text-sm text-card-foreground">{inv.date}</div>
                     <div className="text-xs text-muted-foreground">{inv.time}</div>
                   </TableCell>
                   <TableCell>
-                    <div className="text-sm font-medium text-card-foreground">{inv.customer}</div>
-                    {inv.phone !== "-" && <div className="text-xs text-muted-foreground">{inv.phone}</div>}
+                    <div className="text-sm font-medium text-card-foreground">{inv.customerName}</div>
+                    {inv.customerPhone !== "-" && <div className="text-xs text-muted-foreground">{inv.customerPhone}</div>}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {inv.items.length} item{inv.items.length > 1 ? "s" : ""} · {inv.items.reduce((a, i) => a + i.qty, 0)} qty
@@ -320,7 +351,7 @@ const InvoicesPage = () => {
                       {statusLabels[inv.status]}
                     </span>
                   </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">{inv.counter}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">{inv.counterName}</TableCell>
                   <TableCell className="text-center">
                     <Button variant="ghost" size="icon" onClick={e => { e.stopPropagation(); setSelected(inv); }}>
                       <Eye className="h-4 w-4" />
@@ -339,21 +370,26 @@ const InvoicesPage = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
-              Invoice {selected?.id}
+              Invoice {selected?.invoiceNo}
             </DialogTitle>
             <DialogDescription>
-              {selected?.date} at {selected?.time} · {selected?.counter} · Billed by {selected?.billedBy}
+              {selected?.date} at {selected?.time} · {selected?.counterName} · Billed by {selected?.billedByName}
             </DialogDescription>
           </DialogHeader>
 
           {selected && (
-            <div className="space-y-4">
+            <div className={`space-y-4 ${selected.status === 'returned' ? 'opacity-80' : ''}`}>
+              {selected.status === 'returned' && (
+                <div className="bg-destructive text-destructive-foreground px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 mb-2">
+                   Returned Bill — Inventory Restocked
+                </div>
+              )}
               {/* Customer & Payment Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="rounded-lg border border-border p-3">
                   <p className="text-xs text-muted-foreground mb-1">Customer</p>
-                  <p className="font-medium text-card-foreground">{selected.customer}</p>
-                  {selected.phone !== "-" && <p className="text-sm text-muted-foreground">{selected.phone}</p>}
+                  <p className="font-medium text-card-foreground">{selected.customerName}</p>
+                  {selected.customerPhone !== "-" && <p className="text-sm text-muted-foreground">{selected.customerPhone}</p>}
                 </div>
                 <div className="rounded-lg border border-border p-3">
                   <p className="text-xs text-muted-foreground mb-1">Payment & Status</p>

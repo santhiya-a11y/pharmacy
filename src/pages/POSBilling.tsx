@@ -1,5 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { countersApi, customersApi, holdsApi, posApi } from "@/lib/api/endpoints";
+import { buildPosSalePayload, type CartLine } from "@/lib/pos/salePayload";
+import { parseApiError, isErrorCode } from "@/lib/api/errors";
+import type { ProductSearchRow } from "@/lib/api/types";
 import {
   Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone,
   ShoppingBag, Pill, ArrowLeft, Keyboard, Clock, User, Pause, Printer, Hash,
@@ -21,7 +27,7 @@ import SaleReceiptDialog from "@/components/billing/SaleReceiptDialog";
 
 interface CartItem {
   sno: number;
-  id: number;
+  id: string;
   name: string;
   description: string;
   mfr: string;
@@ -40,6 +46,8 @@ interface CartItem {
   rxVerified?: boolean;
   rxDoctorName?: string;
   rxImageUrl?: string;
+  productBatchId?: string;
+  productId?: string;
 }
 
 interface HeldBill {
@@ -57,16 +65,6 @@ interface SplitPayment {
   amount: number;
 }
 
-const sampleMedicines = [
-  { id: 1, name: "Dolo 650mg", description: "Paracetamol 650mg Tablet", generic: "Paracetamol", mfr: "Micro Labs", batch: "B102", expiry: "08/2026", hsn: "3004", mrp: 30, cost: 18, stock: 250, gstPct: 12, requiresRx: false },
-  { id: 2, name: "Azithromycin 500mg", description: "Azithromycin 500mg Tablet", generic: "Azithromycin", mfr: "Cipla Ltd", batch: "A45", expiry: "12/2026", hsn: "3004", mrp: 100, cost: 62, stock: 45, gstPct: 12, requiresRx: true },
-  { id: 3, name: "Cetirizine 10mg", description: "Cetirizine HCl 10mg Tablet", generic: "Cetirizine", mfr: "Dr. Reddy's", batch: "C78", expiry: "03/2027", hsn: "3004", mrp: 30, cost: 12, stock: 180, gstPct: 12, requiresRx: false },
-  { id: 4, name: "Pantoprazole 40mg", description: "Pantoprazole Sodium 40mg", generic: "Pantoprazole", mfr: "Sun Pharma", batch: "P12", expiry: "06/2026", hsn: "3004", mrp: 60, cost: 28, stock: 92, gstPct: 12, requiresRx: true },
-  { id: 5, name: "Amoxicillin 250mg", description: "Amoxicillin Trihydrate 250mg", generic: "Amoxicillin", mfr: "GSK Pharma", batch: "AM33", expiry: "05/2026", hsn: "3004", mrp: 50, cost: 22, stock: 8, gstPct: 12, requiresRx: true },
-  { id: 6, name: "Metformin 500mg", description: "Metformin HCl 500mg Tablet", generic: "Metformin", mfr: "USV Ltd", batch: "M90", expiry: "11/2026", hsn: "3004", mrp: 25, cost: 10, stock: 300, gstPct: 5, requiresRx: true },
-  { id: 7, name: "Crocin Advance", description: "Paracetamol 500mg Tablet", generic: "Paracetamol", mfr: "GSK Pharma", batch: "CR55", expiry: "09/2026", hsn: "3004", mrp: 28, cost: 15, stock: 150, gstPct: 12, requiresRx: false },
-];
-
 const paymentMethods = [
   { label: "Cash", icon: Banknote, shortcut: "F5", color: "text-chart-2" },
   { label: "UPI", icon: Smartphone, shortcut: "F6", color: "text-chart-5" },
@@ -76,26 +74,34 @@ const paymentMethods = [
 
 const splitMethods = ["Cash", "UPI", "Card"];
 
-const SAMPLE_CUSTOMERS_INLINE = [
-  { id: 1, name: "Rajesh Kumar", phone: "9876543210", address: "MG Road, Andheri", type: "regular" as const, lastVisit: "2 days ago" },
-  { id: 2, name: "Priya Sharma", phone: "9876543211", address: "Hill Road, Bandra", type: "regular" as const, lastVisit: "Today" },
-  { id: 3, name: "Dr. Anil Mehta", phone: "9876543212", address: "Link Road, Goregaon", type: "regular" as const, lastVisit: "1 week ago" },
-  { id: 4, name: "Sunita Patil", phone: "9876543213", address: "Station Road, Dadar", type: "regular" as const, lastVisit: "3 days ago" },
-  { id: 5, name: "Mohammed Ali", phone: "9876543214", address: "JM Road, Pune", type: "regular" as const, lastVisit: "Yesterday" },
-];
-
-const posCounters = [
-  { id: 1, name: "Counter 1" },
-  { id: 2, name: "Counter 2" },
-  { id: 3, name: "Counter 3" },
-  { id: 4, name: "Counter 4" },
-];
+function mapApiCustomer(c: Record<string, unknown>): Customer {
+  const id = c._id != null ? String(c._id) : String(c.id ?? "");
+  const lv = c.lastVisit;
+  const lastVisit =
+    lv instanceof Date
+      ? lv.toLocaleDateString("en-IN")
+      : typeof lv === "string"
+        ? lv
+        : "—";
+  return {
+    id,
+    name: String(c.name ?? ""),
+    phone: String(c.phone ?? ""),
+    address: String(c.address ?? ""),
+    type: (c.type as Customer["type"]) || "regular",
+    balance: typeof c.creditBalance === "number" ? c.creditBalance : undefined,
+    lastVisit,
+    loyaltyPoints: typeof c.loyaltyPoints === "number" ? c.loyaltyPoints : undefined,
+  };
+}
 
 const POSBilling = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const searchRef = useRef<HTMLInputElement>(null);
   const rxFileRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search, 320);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showBagSelector, setShowBagSelector] = useState(false);
@@ -105,24 +111,91 @@ const POSBilling = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [invoiceNo] = useState(() => `INV-${Date.now().toString(36).toUpperCase()}`);
+  const [invoiceNo, setInvoiceNo] = useState(() => `INV-${Date.now().toString(36).toUpperCase()}`);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
-  const [activeCounter, setActiveCounter] = useState(posCounters[0]);
 
-  // Hold
-  const [heldBills, setHeldBills] = useState<HeldBill[]>([]);
+  const { data: countersRaw = [] } = useQuery({
+    queryKey: ["counters"],
+    queryFn: () => countersApi.list() as Promise<Record<string, unknown>[]>,
+  });
+  const counterOptions = useMemo(
+    () =>
+      countersRaw.map((c) => ({
+        id: String(c._id ?? c.id),
+        name: String(c.name ?? "Counter"),
+      })),
+    [countersRaw]
+  );
+  const [activeCounterId, setActiveCounterId] = useState<string>("");
+  useEffect(() => {
+    if (counterOptions.length && !activeCounterId) {
+      setActiveCounterId(counterOptions[0].id);
+    }
+  }, [counterOptions, activeCounterId]);
+
+  const { data: productSearch, isFetching: searchLoading } = useQuery({
+    queryKey: ["pos-products", debouncedSearch],
+    queryFn: async () => {
+      const { rows } = await posApi.searchProducts(debouncedSearch.trim(), 1, 30);
+      return rows;
+    },
+    enabled: debouncedSearch.trim().length >= 1,
+    staleTime: 30_000,
+  });
+
+  const { data: customersRaw = [] } = useQuery({
+    queryKey: ["customers-inline"],
+    queryFn: async () => {
+      const { rows } = await customersApi.list({ pageSize: 200 });
+      return rows as Record<string, unknown>[];
+    },
+    staleTime: 60_000,
+  });
+  const customersInline = useMemo(() => customersRaw.map(mapApiCustomer), [customersRaw]);
+
+  const { data: holdsRaw = [] } = useQuery({
+    queryKey: ["sales-holds"],
+    queryFn: () => holdsApi.list() as Promise<Record<string, unknown>[]>,
+    staleTime: 15_000,
+  });
+  const heldBills: HeldBill[] = useMemo(
+    () =>
+      holdsRaw.map((h) => ({
+        id: String(h.holdId ?? h._id),
+        timestamp: h.createdAt ? new Date(String(h.createdAt)).getTime() : Date.now(),
+        customer: null,
+        customerName: String(h.customerName ?? "Walk-in"),
+        cart: Array.isArray(h.cart) ? (h.cart as CartItem[]) : [],
+      })),
+    [holdsRaw]
+  );
+
+  const holdMutation = useMutation({
+    mutationFn: (body: Record<string, unknown>) => holdsApi.create(body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sales-holds"] });
+    },
+  });
+  const deleteHoldMutation = useMutation({
+    mutationFn: (holdId: string) => holdsApi.remove(holdId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sales-holds"] });
+    },
+  });
+
+  // Hold UI — local recall still mutates cart; list comes from API
   const [showHeldBills, setShowHeldBills] = useState(false);
 
   // Rx prescription dialog
   const [showRxDialog, setShowRxDialog] = useState(false);
-  const [rxTargetItemId, setRxTargetItemId] = useState<number | null>(null);
+  const [rxTargetItemId, setRxTargetItemId] = useState<string | null>(null);
   const [rxDoctorInput, setRxDoctorInput] = useState("");
   const [rxImagePreview, setRxImagePreview] = useState<string | null>(null);
 
   // Frequency selector
   const [showFrequency, setShowFrequency] = useState(false);
-  const [frequencyTargetId, setFrequencyTargetId] = useState<number | null>(null);
+  const [frequencyTargetId, setFrequencyTargetId] = useState<string | null>(null);
 
   // Split
   const [isSplitPayment, setIsSplitPayment] = useState(false);
@@ -130,44 +203,41 @@ const POSBilling = () => {
 
   // Loyalty
   const [redeemPoints, setRedeemPoints] = useState(0);
-  const customerLoyaltyPoints = selectedCustomer ? 320 : 0; // mock
+  const customerLoyaltyPoints = selectedCustomer?.loyaltyPoints ?? 0;
   const pointsValue = redeemPoints * 0.25; // 1 point = ₹0.25
 
-  const filtered = search.length > 0
-    ? sampleMedicines.filter(m =>
-        m.name.toLowerCase().includes(search.toLowerCase()) ||
-        m.generic.toLowerCase().includes(search.toLowerCase()) ||
-        m.mfr.toLowerCase().includes(search.toLowerCase())
-      )
-    : [];
+  const productRows = productSearch ?? [];
+  const checkoutIdempotencyRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "F1") { e.preventDefault(); searchRef.current?.focus(); }
-      if (e.key === "F2") { e.preventDefault(); setShowBagSelector(true); }
-      if (e.key === "F3") { e.preventDefault(); heldBills.length > 0 ? setShowHeldBills(true) : handleHoldBill(); }
-      if (e.key === "F5") { e.preventDefault(); setSelectedPayment("Cash"); setIsSplitPayment(false); }
-      if (e.key === "F6") { e.preventDefault(); setSelectedPayment("UPI"); setIsSplitPayment(false); }
-      if (e.key === "F7") { e.preventDefault(); setSelectedPayment("Card"); setIsSplitPayment(false); }
-      if (e.key === "F8") { e.preventDefault(); setSelectedPayment("Split"); setIsSplitPayment(true); }
-      if (e.key === "F9") { e.preventDefault(); handleCompleteSale(); }
-      if (e.key === "Escape") { setShowSuggestions(false); setSearch(""); }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [cart, selectedPayment, isSplitPayment, splitPayments]);
-
-  const addToCart = useCallback((med: typeof sampleMedicines[0]) => {
+  const addToCart = useCallback((med: ProductSearchRow) => {
+    if (med.stock <= 0) {
+      toast.error("Insufficient stock", { description: med.name });
+      return;
+    }
     const sgst = med.gstPct / 2;
     const cgst = med.gstPct / 2;
+    const lineKey = med.productBatchId ? `b-${med.productBatchId}` : `p-${med.id}`;
     setCart(prev => {
-      const existing = prev.find(c => c.id === med.id);
-      if (existing) return prev.map(c => c.id === med.id ? { ...c, qty: c.qty + 1 } : c);
+      const existing = prev.find(c => c.id === lineKey);
+      if (existing) return prev.map(c => c.id === lineKey ? { ...c, qty: c.qty + 1 } : c);
       return [...prev, {
-        sno: prev.length + 1, id: med.id, name: med.name, description: med.description,
-        mfr: med.mfr, batch: med.batch, expiry: med.expiry, hsn: med.hsn,
-        mrp: med.mrp, qty: 1, sgst, cgst, discPct: 0,
-        requiresRx: med.requiresRx, rxVerified: false,
+        sno: prev.length + 1,
+        id: lineKey,
+        name: med.name,
+        description: med.description,
+        mfr: med.mfr,
+        batch: med.batch,
+        expiry: med.expiry,
+        hsn: med.hsn,
+        mrp: med.mrp,
+        qty: 1,
+        sgst,
+        cgst,
+        discPct: 0,
+        requiresRx: med.requiresRx,
+        rxVerified: false,
+        productBatchId: med.productBatchId ?? undefined,
+        productId: med.productBatchId ? undefined : med.id,
       }];
     });
     setSearch(""); setShowSuggestions(false);
@@ -180,45 +250,44 @@ const POSBilling = () => {
   }, []);
 
   const addBagToCart = (bag: BagItem) => {
+    const bagId = `bag-${crypto.randomUUID()}`;
     setCart(prev => [...prev, {
-      sno: prev.length + 1, id: 9000 + Math.random() * 1000,
+      sno: prev.length + 1, id: bagId,
       name: bag.name, description: bag.size + " bag", mfr: "—",
       batch: "—", expiry: "—", hsn: "3923", mrp: bag.price, qty: 1,
       sgst: 9, cgst: 9, discPct: 0, isBag: true,
     }]);
   };
 
-  const updateQty = (id: number, delta: number) => {
+  const updateQty = (id: string, delta: number) => {
     setCart(prev => prev.map(c => c.id === id ? { ...c, qty: Math.max(1, c.qty + delta) } : c));
   };
 
-  const updateDiscount = (id: number, disc: number) => {
+  const updateDiscount = (id: string, disc: number) => {
     setCart(prev => prev.map(c => c.id === id ? { ...c, discPct: Math.min(100, Math.max(0, disc)) } : c));
   };
 
-  const removeItem = (id: number) => {
+  const removeItem = (id: string) => {
     setCart(prev => prev.filter(c => c.id !== id).map((c, i) => ({ ...c, sno: i + 1 })));
   };
 
-  const setDosageLabel = (id: number, label: string) => {
+  const setDosageLabel = (id: string, label: string) => {
     setCart(prev => prev.map(c => c.id === id ? { ...c, dosageLabel: label } : c));
   };
 
   // Rx / Frequency click — context-aware
-  const handleRxClick = (itemId: number) => {
+  const handleRxClick = (itemId: string) => {
     const item = cart.find(c => c.id === itemId);
     if (!item) return;
     if (item.requiresRx) {
-      // Prescription item → open Rx dialog
       openRxDialog(itemId);
     } else {
-      // Non-prescription item → open frequency selector
       setFrequencyTargetId(itemId);
       setShowFrequency(true);
     }
   };
 
-  const openRxDialog = (itemId: number) => {
+  const openRxDialog = (itemId: string) => {
     const item = cart.find(c => c.id === itemId);
     setRxTargetItemId(itemId);
     setRxDoctorInput(item?.rxDoctorName || "");
@@ -279,33 +348,51 @@ const POSBilling = () => {
   const unverifiedRx = rxItems.filter(c => !c.rxVerified);
 
   // Hold Bill
-  const handleHoldBill = () => {
-    if (cart.length === 0) { toast.error("Add items to hold"); return; }
-    const heldBill: HeldBill = {
-      id: `HLD-${Date.now().toString(36).toUpperCase()}`,
-      timestamp: Date.now(),
-      customer: selectedCustomer,
-      customerName: customerName || "Walk-in",
-      cart: [...cart],
-    };
-    setHeldBills(prev => [...prev, heldBill]);
-    toast.success(`Bill held: ${heldBill.id}`, { description: `${cart.length} items · ₹${grandTotal.toFixed(2)}` });
-    handleClearBill();
+  const handleHoldBill = async (): Promise<boolean> => {
+    if (cart.length === 0) { toast.error("Add items to hold"); return false; }
+    try {
+      const res = await holdMutation.mutateAsync({
+        cart,
+        customerName: customerName || "Walk-in",
+        customerId: selectedCustomer?.id != null ? String(selectedCustomer.id) : undefined,
+        grandTotal,
+        counterId: activeCounterId || undefined,
+      });
+      toast.success(`Bill held: ${res.holdId}`, { description: `${cart.length} items · ₹${grandTotal.toFixed(2)}` });
+      handleClearBill();
+      return true;
+    } catch (e) {
+      toast.error(parseApiError(e).message);
+      return false;
+    }
   };
 
-  const handleRecallBill = (bill: HeldBill) => {
-    if (cart.length > 0) handleHoldBill();
+  const handleRecallBill = async (bill: HeldBill) => {
+    if (cart.length > 0) {
+      const ok = await handleHoldBill();
+      if (!ok) return;
+    }
     setCart(bill.cart);
     setSelectedCustomer(bill.customer);
     setCustomerName(bill.customerName);
-    setHeldBills(prev => prev.filter(b => b.id !== bill.id));
     setShowHeldBills(false);
+    try {
+      await deleteHoldMutation.mutateAsync(bill.id);
+      queryClient.invalidateQueries({ queryKey: ["sales-holds"] });
+    } catch (e) {
+      toast.error(parseApiError(e).message);
+    }
     toast.success(`Recalled: ${bill.id}`);
   };
 
   const handleDeleteHeldBill = (billId: string) => {
-    setHeldBills(prev => prev.filter(b => b.id !== billId));
-    toast.success("Held bill deleted");
+    deleteHoldMutation.mutate(billId, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["sales-holds"] });
+        toast.success("Held bill deleted");
+      },
+      onError: (e) => toast.error(parseApiError(e).message),
+    });
   };
 
   const handleClearBill = () => {
@@ -352,22 +439,80 @@ const POSBilling = () => {
       return;
     }
     setIsProcessing(true);
+    const idem = checkoutIdempotencyRef.current ?? crypto.randomUUID();
+    checkoutIdempotencyRef.current = idem;
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      toast.success("Sale completed successfully!");
+      const payments = isSplitPayment
+        ? splitPayments.map((p) => ({ method: p.method, amount: p.amount }))
+        : [{ method: selectedPayment!, amount: Math.max(0, grandTotal) }];
+      const paymentMode = isSplitPayment ? "Split" : (selectedPayment || "Cash");
+      const payload = buildPosSalePayload({
+        cart: cart as CartLine[],
+        selectedCustomer,
+        customerName,
+        customerPhone,
+        counterId: activeCounterId || undefined,
+        payments,
+        paymentMode,
+        loyaltyPointsRedeemed: redeemPoints,
+      });
+      const result = await posApi.checkout(payload, idem);
+      checkoutIdempotencyRef.current = null;
+      const inv = result.invoice as Record<string, unknown> | undefined;
+      if (inv?.invoiceNo) setInvoiceNo(String(inv.invoiceNo));
+      toast.success(result.replay ? "Sale already recorded (replay)" : "Sale completed successfully!");
       setShowReceipt(true);
-    } catch {
-      toast.error("Failed to complete sale.");
+      void queryClient.invalidateQueries({ queryKey: ["pos-products"] });
+      void queryClient.invalidateQueries({ queryKey: ["customers-inline"] });
+    } catch (e) {
+      const err = parseApiError(e);
+      if (isErrorCode(err, "INSUFFICIENT_STOCK")) {
+        toast.error(err.message, { description: "Reduce quantity or remove the line." });
+      } else if (isErrorCode(err, "RX_REQUIRED")) {
+        toast.error(err.message, { description: "Verify prescription for Rx items before checkout." });
+      } else if (isErrorCode(err, "PAYMENT_MISMATCH")) {
+        toast.error(err.message, { description: "Adjust split payments so they match the grand total." });
+      } else if (isErrorCode(err, "NETWORK_ERROR")) {
+        toast.error(err.message, { description: "Tap Complete again to retry with the same idempotency key." });
+      } else {
+        toast.error(err.message);
+      }
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handleNewSale = () => {
+    checkoutIdempotencyRef.current = null;
+    setInvoiceNo(`INV-${Date.now().toString(36).toUpperCase()}`);
     handleClearBill();
     setShowReceipt(false);
     searchRef.current?.focus();
   };
+
+  const handleHoldBillRef = useRef(handleHoldBill);
+  const handleCompleteSaleRef = useRef(handleCompleteSale);
+  handleHoldBillRef.current = handleHoldBill;
+  handleCompleteSaleRef.current = handleCompleteSale;
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "F1") { e.preventDefault(); searchRef.current?.focus(); }
+      if (e.key === "F2") { e.preventDefault(); setShowBagSelector(true); }
+      if (e.key === "F3") {
+        e.preventDefault();
+        heldBills.length > 0 ? setShowHeldBills(true) : void handleHoldBillRef.current();
+      }
+      if (e.key === "F5") { e.preventDefault(); setSelectedPayment("Cash"); setIsSplitPayment(false); }
+      if (e.key === "F6") { e.preventDefault(); setSelectedPayment("UPI"); setIsSplitPayment(false); }
+      if (e.key === "F7") { e.preventDefault(); setSelectedPayment("Card"); setIsSplitPayment(false); }
+      if (e.key === "F8") { e.preventDefault(); setSelectedPayment("Split"); setIsSplitPayment(true); }
+      if (e.key === "F9") { e.preventDefault(); void handleCompleteSaleRef.current(); }
+      if (e.key === "Escape") { setShowSuggestions(false); setSearch(""); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [heldBills.length]);
 
   const handleCustomerSelect = (customer: Customer) => {
     setSelectedCustomer(customer);
@@ -401,14 +546,11 @@ const POSBilling = () => {
           <div className="flex items-center gap-1.5 mr-2 border border-border rounded-lg px-2.5 py-1.5 bg-secondary/50">
             <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
             <select
-              value={activeCounter.id}
-              onChange={e => {
-                const c = posCounters.find(c => c.id === Number(e.target.value));
-                if (c) setActiveCounter(c);
-              }}
+              value={activeCounterId}
+              onChange={(e) => setActiveCounterId(e.target.value)}
               className="text-xs font-medium bg-transparent border-0 outline-none text-foreground cursor-pointer"
             >
-              {posCounters.map(c => (
+              {counterOptions.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
@@ -426,32 +568,41 @@ const POSBilling = () => {
               className="h-10 pl-10 pr-3 text-sm bg-secondary/50 border-0 focus-visible:ring-1"
               autoFocus
             />
-            {showSuggestions && filtered.length > 0 && (
+            {showSuggestions && debouncedSearch.trim().length >= 1 && (
               <div className="absolute z-50 mt-1 w-full rounded-xl border border-border bg-card shadow-xl overflow-hidden max-h-80 overflow-y-auto">
-                {filtered.map(med => (
-                  <button
-                    key={med.id}
-                    onClick={() => addToCart(med)}
-                    className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-accent transition-colors border-b border-border/40 last:border-0"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-card-foreground">{med.name}</p>
-                        {med.requiresRx && (
-                          <Badge variant="outline" className="text-[9px] h-4 px-1 border-destructive/40 text-destructive">Rx</Badge>
-                        )}
+                {searchLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="h-5 w-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                  </div>
+                ) : productRows.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-sm text-muted-foreground">No products found</div>
+                ) : (
+                  productRows.map((med) => (
+                    <button
+                      key={`${med.id}-${med.productBatchId ?? "nb"}`}
+                      type="button"
+                      onClick={() => addToCart(med)}
+                      className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-accent transition-colors border-b border-border/40 last:border-0"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-card-foreground">{med.name}</p>
+                          {med.requiresRx && (
+                            <Badge variant="outline" className="text-[9px] h-4 px-1 border-destructive/40 text-destructive">Rx</Badge>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-muted-foreground truncate">{med.description} · {med.mfr}</p>
+                        <p className="text-[11px] text-muted-foreground">Batch: {med.batch} · Exp: {med.expiry} · HSN: {med.hsn}</p>
                       </div>
-                      <p className="text-[11px] text-muted-foreground truncate">{med.description} · {med.mfr}</p>
-                      <p className="text-[11px] text-muted-foreground">Batch: {med.batch} · Exp: {med.expiry} · HSN: {med.hsn}</p>
-                    </div>
-                    <div className="text-right shrink-0 ml-4">
-                      <p className="text-sm font-bold text-card-foreground">₹{med.mrp}</p>
-                      <p className={`text-[11px] font-medium ${med.stock < 10 ? "text-destructive" : "text-muted-foreground"}`}>
-                        Stock: {med.stock}
-                      </p>
-                    </div>
-                  </button>
-                ))}
+                      <div className="text-right shrink-0 ml-4">
+                        <p className="text-sm font-bold text-card-foreground">₹{med.mrp}</p>
+                        <p className={`text-[11px] font-medium ${med.stock < 10 ? "text-destructive" : "text-muted-foreground"}`}>
+                          Stock: {med.stock}
+                        </p>
+                      </div>
+                    </button>
+                  ))
+                )}
               </div>
             )}
           </div>
@@ -470,7 +621,12 @@ const POSBilling = () => {
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <button onClick={() => heldBills.length > 0 ? setShowHeldBills(true) : handleHoldBill()} className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 h-10 hover:bg-accent hover:border-warning/40 transition-all">
+              <button
+                type="button"
+                disabled={holdMutation.isPending}
+                onClick={() => heldBills.length > 0 ? setShowHeldBills(true) : void handleHoldBill()}
+                className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 h-10 hover:bg-accent hover:border-warning/40 transition-all disabled:opacity-50"
+              >
                 <Pause className="h-4 w-4 text-warning" />
                 <span className="text-xs font-medium hidden sm:inline">{heldBills.length > 0 ? "Recall" : "Hold"}</span>
                 {heldBills.length > 0 && (
@@ -723,7 +879,7 @@ const POSBilling = () => {
                   value={customerPhone}
                   onChange={e => {
                     setCustomerPhone(e.target.value);
-                    const match = SAMPLE_CUSTOMERS_INLINE.find(c => c.phone === e.target.value);
+                    const match = customersInline.find(c => c.phone === e.target.value);
                     if (match) {
                       setSelectedCustomer(match);
                       setCustomerName(match.name);
@@ -740,7 +896,7 @@ const POSBilling = () => {
           {/* Quick search dropdown */}
           {!selectedCustomer && (customerName.length >= 2 || customerPhone.length >= 3) && (
             (() => {
-              const matches = SAMPLE_CUSTOMERS_INLINE.filter(c =>
+              const matches = customersInline.filter(c =>
                 (customerName.length >= 2 && c.name.toLowerCase().includes(customerName.toLowerCase())) ||
                 (customerPhone.length >= 3 && c.phone.includes(customerPhone))
               );
@@ -912,7 +1068,13 @@ const POSBilling = () => {
         <div className="p-3 space-y-1.5 mt-auto">
           <button
             onClick={handleCompleteSale}
-            disabled={cart.length === 0 || (!selectedPayment) || (isSplitPayment && Math.abs(splitRemaining) > 0.5) || isProcessing}
+            disabled={
+              cart.length === 0 ||
+              !selectedPayment ||
+              (isSplitPayment && Math.abs(splitRemaining) > 0.5) ||
+              isProcessing ||
+              unverifiedRx.length > 0
+            }
             className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground shadow-lg hover:opacity-90 transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98] flex items-center justify-center gap-2"
           >
             {isProcessing ? (
@@ -925,7 +1087,7 @@ const POSBilling = () => {
           </button>
           <button
             onClick={handleHoldBill}
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || holdMutation.isPending}
             className="w-full rounded-xl border border-warning/40 bg-warning/5 py-2 text-xs font-medium text-warning hover:bg-warning/10 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <Pause className="h-3.5 w-3.5" />
@@ -1025,7 +1187,12 @@ const POSBilling = () => {
       <BagSelector open={showBagSelector} onOpenChange={setShowBagSelector} onSelect={addBagToCart} />
 
       {/* Customer Selector */}
-      <CustomerSelector open={showCustomerSelector} onOpenChange={setShowCustomerSelector} onSelect={handleCustomerSelect} />
+      <CustomerSelector
+        open={showCustomerSelector}
+        onOpenChange={setShowCustomerSelector}
+        onSelect={handleCustomerSelect}
+        customers={customersInline}
+      />
 
       {/* Held Bills Dialog */}
       <Dialog open={showHeldBills} onOpenChange={setShowHeldBills}>

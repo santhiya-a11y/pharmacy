@@ -1,9 +1,14 @@
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { X, Package, Save, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { inventoryApi } from "@/lib/api/endpoints";
+import { parseApiError } from "@/lib/api/errors";
+import { qk } from "@/hooks/api/useApi";
 
 interface AddStockDialogProps {
   open: boolean;
@@ -41,7 +46,6 @@ const categoryFields: Record<string, { label: string; placeholder: string; field
     { label: "Product Type", placeholder: "e.g. Protein Powder, Multivitamin, Health Drink", field: "productType" },
     { label: "Flavour", placeholder: "e.g. Chocolate, Vanilla", field: "flavour" },
     { label: "Weight / Volume", placeholder: "e.g. 400gm, 200ml", field: "size" },
-    { label: "Veg / Non-Veg", placeholder: "Veg / Non-Veg", field: "vegStatus" },
     { label: "Pack Size", placeholder: "e.g. 60 capsules, 1kg", field: "packSize" },
   ],
   baby: [
@@ -60,19 +64,29 @@ const categoryFields: Record<string, { label: string; placeholder: string; field
     { label: "Brand", placeholder: "e.g. Parle, Surf Excel", field: "brand" },
     { label: "Size / Weight", placeholder: "e.g. 200gm, 1L, 500ml", field: "size" },
     { label: "Pack Count", placeholder: "e.g. 12 units", field: "packSize" },
-    { label: "Veg / Non-Veg", placeholder: "Veg / Non-Veg", field: "vegStatus" },
   ],
 };
 
 const suppliers = ["Cipla Ltd", "Sun Pharma", "Micro Labs", "Alkem", "GSK", "Dr. Reddy's", "USV", "Mankind", "Himalaya", "Dabur"];
 
+const initialForm = () => ({
+  itemName: "",
+  supplier: "",
+  batchNumber: "",
+  expiryDate: "",
+  quantity: "",
+  purchasePrice: "",
+  mrp: "",
+  rackLocation: "",
+  gstRate: "12",
+  invoiceNumber: "",
+  manufacturer: "",
+});
+
 const AddStockDialog = ({ open, onClose }: AddStockDialogProps) => {
+  const queryClient = useQueryClient();
   const [category, setCategory] = useState("");
-  const [formData, setFormData] = useState({
-    itemName: "", supplier: "", batchNumber: "", expiryDate: "",
-    quantity: "", purchasePrice: "", mrp: "", rackLocation: "", gstRate: "12",
-    invoiceNumber: "", manufacturer: "",
-  });
+  const [formData, setFormData] = useState(initialForm);
   const [extraFields, setExtraFields] = useState<Record<string, string>>({});
 
   const update = (field: string, value: string) => setFormData(prev => ({ ...prev, [field]: value }));
@@ -95,9 +109,90 @@ const AddStockDialog = ({ open, onClose }: AddStockDialogProps) => {
 
   const fields = category ? (categoryFields[category] || []) : [];
 
+  const addMutation = useMutation({
+    mutationFn: (body: Record<string, unknown>) => inventoryApi.addStock(body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: qk.inventorySummary });
+    },
+  });
+
+  const buildPayload = (): Record<string, unknown> => ({
+    itemName: formData.itemName.trim(),
+    manufacturer: formData.manufacturer.trim(),
+    category: category || undefined,
+    supplierName: formData.supplier.trim(),
+    batchNo: formData.batchNumber.trim(),
+    expiryDate: formData.expiryDate,
+    mrp: parseFloat(formData.mrp),
+    purchaseRate: parseFloat(formData.purchasePrice),
+    gstRate: parseFloat(formData.gstRate) || 12,
+    rack: formData.rackLocation.trim() || undefined,
+    qty: parseInt(formData.quantity, 10),
+    invoiceNumber: formData.invoiceNumber.trim() || undefined,
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onClose();
+    if (!formData.supplier.trim()) {
+      toast.error("Please select a supplier");
+      return;
+    }
+    const payload = buildPayload();
+    if (!Number.isFinite(payload.mrp as number) || (payload.mrp as number) <= 0) {
+      toast.error("Enter a valid MRP");
+      return;
+    }
+    if (!Number.isFinite(payload.qty as number) || (payload.qty as number) <= 0) {
+      toast.error("Enter a valid quantity");
+      return;
+    }
+    addMutation.mutate(payload, {
+      onSuccess: () => {
+        toast.success("Stock added");
+        onClose();
+        setFormData(initialForm());
+        setExtraFields({});
+        setCategory("");
+      },
+      onError: (err) => {
+        toast.error(parseApiError(err).message);
+      },
+    });
+  };
+
+  const handleSaveAndAddAnother = () => {
+    if (!formData.supplier.trim()) {
+      toast.error("Please select a supplier");
+      return;
+    }
+    const payload = buildPayload();
+    if (!Number.isFinite(payload.mrp as number) || (payload.mrp as number) <= 0) {
+      toast.error("Enter a valid MRP");
+      return;
+    }
+    if (!Number.isFinite(payload.qty as number) || (payload.qty as number) <= 0) {
+      toast.error("Enter a valid quantity");
+      return;
+    }
+    addMutation.mutate(payload, {
+      onSuccess: () => {
+        toast.success("Stock added");
+        queryClient.invalidateQueries({ queryKey: ["inventory"] });
+        queryClient.invalidateQueries({ queryKey: qk.inventorySummary });
+        setFormData((prev) => ({
+          ...initialForm(),
+          itemName: prev.itemName,
+          supplier: prev.supplier,
+          manufacturer: prev.manufacturer,
+          gstRate: prev.gstRate,
+        }));
+        setExtraFields({});
+      },
+      onError: (err) => {
+        toast.error(parseApiError(err).message);
+      },
+    });
   };
 
   const handleCategoryChange = (val: string) => {
@@ -277,10 +372,20 @@ const AddStockDialog = ({ open, onClose }: AddStockDialogProps) => {
 
               {/* Actions */}
               <div className="flex items-center justify-between gap-3 pt-2 border-t border-border">
-                <Button type="button" variant="ghost" className="text-muted-foreground">Save & Add Another</Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-muted-foreground"
+                  disabled={addMutation.isPending}
+                  onClick={handleSaveAndAddAnother}
+                >
+                  Save & Add Another
+                </Button>
                 <div className="flex gap-3">
-                  <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-                  <Button type="submit" className="gap-2">
+                  <Button type="button" variant="outline" onClick={onClose} disabled={addMutation.isPending}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="gap-2" disabled={addMutation.isPending}>
                     <Save className="h-4 w-4" /> Add Stock
                   </Button>
                 </div>

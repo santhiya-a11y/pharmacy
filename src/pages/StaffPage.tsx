@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import AdminAttendanceView from "@/components/staff/AdminAttendanceView";
 import StaffDetailPanel from "@/components/staff/StaffDetailPanel";
 import { toast } from "sonner";
@@ -37,14 +44,10 @@ interface StaffMember {
   photo?: string;
 }
 
-const staffData: StaffMember[] = [
-  { id: "EMP-0001", name: "Priya Sharma", role: "Admin", phone: "+91 98765 43210", email: "priya@pharmacare.in", status: "active", shift: "Full Day", joinDate: "Jan 2023", avatar: "PS", sales: 45200, dob: "1992-05-14", gender: "Female", address: "12, MG Road, Andheri West, Mumbai", emergencyContact: "+91 99887 76655", qualification: "B.Pharm", university: "Mumbai University", graduationYear: "2014", regNumber: "MH-PH-2014-3421", pharmacyCouncil: "Maharashtra", licenseIssue: "2014-08-10", licenseExpiry: "2029-08-09", idType: "Aadhar", idNumber: "XXXX-XXXX-4321" },
-  { id: "EMP-0002", name: "Rahul Kumar", role: "Pharmacist", phone: "+91 87654 32109", email: "rahul@pharmacare.in", status: "active", shift: "Morning", joinDate: "Mar 2023", avatar: "RK", sales: 38900, dob: "1995-11-22", gender: "Male", address: "45, Hill Road, Bandra, Mumbai", emergencyContact: "+91 88776 54321", qualification: "D.Pharm", university: "SNDT University", graduationYear: "2017", regNumber: "MH-PH-2017-5678", pharmacyCouncil: "Maharashtra", licenseIssue: "2017-06-15", licenseExpiry: "2032-06-14", idType: "PAN", idNumber: "ABCDE1234F" },
-  { id: "EMP-0003", name: "Anita Devi", role: "Cashier", phone: "+91 76543 21098", email: "anita@pharmacare.in", status: "active", shift: "Evening", joinDate: "Jun 2023", avatar: "AD", sales: 29400, dob: "1998-03-08", gender: "Female", address: "78, Station Road, Dadar, Mumbai" },
-  { id: "EMP-0004", name: "Suresh Babu", role: "Inventory Manager", phone: "+91 65432 10987", email: "suresh@pharmacare.in", status: "active", shift: "Morning", joinDate: "Aug 2023", avatar: "SB", dob: "1990-07-19", gender: "Male", address: "23, Link Road, Goregaon, Mumbai" },
-  { id: "EMP-0005", name: "Meera Nair", role: "Pharmacist", phone: "+91 54321 09876", email: "meera@pharmacare.in", status: "inactive", shift: "Night", joinDate: "Nov 2023", avatar: "MN", sales: 12300, dob: "1994-12-01", gender: "Female" },
-  { id: "EMP-0006", name: "Vikram Singh", role: "Delivery", phone: "+91 43210 98765", email: "vikram@pharmacare.in", status: "active", shift: "Full Day", joinDate: "Feb 2024", avatar: "VS", dob: "1997-09-25", gender: "Male" },
-];
+import { useStaff, useCreateStaff, useUpdateStaff, useDeleteStaff } from "@/hooks/api/useApi";
+import { useMemo } from "react";
+import { Loader2, Eye, Edit2, Trash2 } from "lucide-react";
+import { format } from "date-fns";
 
 const roleColors: Record<string, string> = {
   Admin: "bg-primary/10 text-primary",
@@ -66,10 +69,23 @@ const StaffPage = () => {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addStep, setAddStep] = useState(1);
   const [activeTab, setActiveTab] = useState<"staff" | "attendance">("staff");
-  const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [certPreview, setCertPreview] = useState<string | null>(null);
   const [idDocPreview, setIdDocPreview] = useState<string | null>(null);
+
+  const { data: staffResponse, isLoading } = useStaff({
+    page: 1,
+    pageSize: 100,
+    q: search || undefined
+  });
+
+  const { mutate: createStaff, isPending: isSaving } = useCreateStaff();
+  const { mutate: updateStaff } = useUpdateStaff();
+  const { mutate: deleteStaff } = useDeleteStaff();
+
+  const staffMembers = useMemo(() => (staffResponse?.rows as any[]) || [], [staffResponse]);
+  const stats = (staffResponse?.meta as any)?.stats;
 
   const [newStaff, setNewStaff] = useState({
     name: "", dob: "", gender: "", phone: "", email: "", address: "", emergencyContact: "", role: "", shift: "",
@@ -78,28 +94,98 @@ const StaffPage = () => {
     idType: "", idNumber: "",
   });
 
-  const update = (field: string, value: string) => setNewStaff(prev => ({ ...prev, [field]: value }));
-
-  const filtered = staffData.filter(s => {
-    const matchSearch = s.name.toLowerCase().includes(search.toLowerCase()) || s.role.toLowerCase().includes(search.toLowerCase());
-    const matchRole = filterRole === "all" || s.role === filterRole;
-    return matchSearch && matchRole;
-  });
-
-  const activeCount = staffData.filter(s => s.status === "active").length;
-
   const isPharmacist = newStaff.role === "Pharmacist" || newStaff.role === "Admin";
   const totalSteps = isPharmacist ? 4 : 3;
 
+  const update = (field: string, value: string) => setNewStaff(prev => ({ ...prev, [field]: value }));
+
+  const selectedStaff = useMemo(() => {
+    if (!selectedStaffId) return null;
+    return staffMembers.find((s: any) => s._id === selectedStaffId) || null;
+  }, [staffMembers, selectedStaffId]);
+
+  const filtered = useMemo(() => {
+    return staffMembers.filter(s => {
+      const matchRole = filterRole === "all" || s.role === filterRole;
+      return matchRole;
+    });
+  }, [staffMembers, filterRole]);
+
+  const handleDelete = (id: string, name: string) => {
+    if (window.confirm(`Are you sure you want to delete ${name}?`)) {
+      deleteStaff(id, {
+        onSuccess: () => toast.success("Staff member deleted"),
+        onError: (err: any) => toast.error(err.message || "Failed to delete staff"),
+      });
+    }
+  };
+
+  const handleStatusToggle = (id: string, current: string) => {
+    updateStaff(
+      { id, body: { status: current === "active" ? "inactive" : "active" } },
+      {
+        onSuccess: () => toast.success("Status updated"),
+        onError: (err: any) => toast.error(err.message || "Update failed"),
+      }
+    );
+  };
+
+  const validateStep = (step: number) => {
+    if (step === 1) {
+      if (!newStaff.name.trim()) return "Full name is required";
+      if (!newStaff.dob) return "Date of birth is required";
+      if (!newStaff.gender) return "Gender is required";
+      if (!newStaff.phone.trim() || newStaff.phone.length !== 10) return "Phone number must be exactly 10 digits";
+      if (!newStaff.emergencyContact.trim() || newStaff.emergencyContact.length !== 10) return "Emergency contact must be exactly 10 digits";
+      if (!newStaff.address.trim()) return "Address is required";
+      if (!newStaff.role) return "Role is required";
+      if (!newStaff.shift) return "Shift is required";
+    }
+    if (step === 2) {
+      if (!newStaff.qualification) return "Qualification is required";
+    }
+    if (step === 3 && isPharmacist) {
+      if (!newStaff.regNumber.trim()) return "Registration number is required";
+      if (!newStaff.pharmacyCouncil) return "Pharmacy council is required";
+      if (!newStaff.licenseIssue) return "License issue date is required";
+      if (!newStaff.licenseExpiry) return "License expiry date is required";
+    }
+    return null;
+  };
+
+  const handleNext = () => {
+    const error = validateStep(addStep);
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    setAddStep(s => s + 1);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Staff member added successfully");
-    setShowAddDialog(false);
-    setAddStep(1);
-    setNewStaff({ name: "", dob: "", gender: "", phone: "", email: "", address: "", emergencyContact: "", role: "", shift: "", qualification: "", university: "", graduationYear: "", regNumber: "", pharmacyCouncil: "", licenseIssue: "", licenseExpiry: "", idType: "", idNumber: "" });
-    setPhotoPreview(null);
-    setCertPreview(null);
-    setIdDocPreview(null);
+    const error = validateStep(addStep) || (isPharmacist ? null : validateStep(3)); 
+    // Double check all data for last step
+    const finalError = validateStep(1) || validateStep(2) || (isPharmacist ? validateStep(3) : null);
+    if (finalError) {
+      toast.error(finalError);
+      return;
+    }
+
+    createStaff(newStaff, {
+      onSuccess: () => {
+        toast.success("Staff member added successfully");
+        setShowAddDialog(false);
+        setAddStep(1);
+        setNewStaff({ name: "", dob: "", gender: "", phone: "", email: "", address: "", emergencyContact: "", role: "", shift: "", qualification: "", university: "", graduationYear: "", regNumber: "", pharmacyCouncil: "", licenseIssue: "", licenseExpiry: "", idType: "", idNumber: "" });
+        setPhotoPreview(null);
+        setCertPreview(null);
+        setIdDocPreview(null);
+      },
+      onError: (err: any) => {
+        toast.error(err.message || "Failed to add staff member");
+      }
+    });
   };
 
   const handleImageUpload = (setter: (v: string | null) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,14 +207,14 @@ const StaffPage = () => {
       </div>
 
       {/* Tab Switcher */}
-      <div className="flex rounded-lg border border-border bg-card overflow-hidden w-fit">
+      {/* <div className="flex rounded-lg border border-border bg-card overflow-hidden w-fit">
         <button onClick={() => setActiveTab("staff")} className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium transition-colors ${activeTab === "staff" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>
           <UserCheck className="h-4 w-4" /> Staff Directory
         </button>
         <button onClick={() => setActiveTab("attendance")} className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium transition-colors ${activeTab === "attendance" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary"}`}>
           <CalendarDays className="h-4 w-4" /> Attendance
         </button>
-      </div>
+      </div> */}
 
       {activeTab === "attendance" ? (
         <AdminAttendanceView />
@@ -138,28 +224,28 @@ const StaffPage = () => {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="rounded-xl border border-border bg-card p-4">
               <p className="text-xs text-muted-foreground font-medium">Total Staff</p>
-              <p className="text-2xl font-bold text-card-foreground mt-1">{staffData.length}</p>
+              <p className="text-2xl font-bold text-card-foreground mt-1">{isLoading ? "…" : (stats?.total || 0)}</p>
             </div>
             <div className="rounded-xl border border-success/30 bg-success/5 p-4">
               <div className="flex items-center gap-1.5">
                 <UserCheck className="h-3.5 w-3.5 text-success" />
                 <p className="text-xs text-success font-medium">Active</p>
               </div>
-              <p className="text-2xl font-bold text-success mt-1">{activeCount}</p>
+              <p className="text-2xl font-bold text-success mt-1">{isLoading ? "…" : (stats?.active || 0)}</p>
             </div>
             <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
               <div className="flex items-center gap-1.5">
                 <UserX className="h-3.5 w-3.5 text-destructive" />
                 <p className="text-xs text-destructive font-medium">Inactive</p>
               </div>
-              <p className="text-2xl font-bold text-destructive mt-1">{staffData.length - activeCount}</p>
+              <p className="text-2xl font-bold text-destructive mt-1">{isLoading ? "…" : (stats?.inactive || 0)}</p>
             </div>
             <div className="rounded-xl border border-border bg-card p-4">
               <div className="flex items-center gap-1.5">
                 <Shield className="h-3.5 w-3.5 text-primary" />
                 <p className="text-xs text-muted-foreground font-medium">Roles</p>
               </div>
-              <p className="text-2xl font-bold text-card-foreground mt-1">{new Set(staffData.map(s => s.role)).size}</p>
+              <p className="text-2xl font-bold text-card-foreground mt-1">{isLoading ? "…" : (stats?.rolesCount || 0)}</p>
             </div>
           </div>
 
@@ -179,48 +265,77 @@ const StaffPage = () => {
           </div>
 
           {/* Staff Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map(member => (
-              <div key={member.id} className="rounded-xl border border-border bg-card p-5 hover:shadow-md transition-shadow group cursor-pointer" onClick={() => setSelectedStaff(member)}>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold ${member.status === "active" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
-                      {member.avatar}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-card-foreground">{member.name}</h3>
-                      <p className="text-[10px] text-muted-foreground font-mono">{member.id}</p>
-                      <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium mt-0.5 ${roleColors[member.role] || "bg-secondary text-secondary-foreground"}`}>{member.role}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={member.status === "active" ? "default" : "secondary"} className={`text-[10px] ${member.status === "active" ? "bg-success/15 text-success hover:bg-success/20 border-0" : "bg-muted text-muted-foreground border-0"}`}>
-                      {member.status === "active" ? "Active" : "Inactive"}
-                    </Badge>
-                    <button className="rounded-md p-1 opacity-0 group-hover:opacity-100 hover:bg-secondary transition-all">
-                      <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                    </button>
-                  </div>
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center p-24 gap-3 text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin text-primary/30" />
+              <p className="text-sm font-medium">Loading staff members...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {filtered.length === 0 ? (
+                <div className="col-span-full text-center py-12 text-sm text-muted-foreground italic">
+                  No staff members found.
                 </div>
-                <div className="mt-4 space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-muted-foreground"><Phone className="h-3.5 w-3.5" /><span>{member.phone}</span></div>
-                  <div className="flex items-center gap-2 text-muted-foreground"><Mail className="h-3.5 w-3.5" /><span className="truncate">{member.email}</span></div>
-                  <div className="flex items-center gap-2 text-muted-foreground"><Clock className="h-3.5 w-3.5" /><span>{member.shift} Shift · Since {member.joinDate}</span></div>
-                </div>
-                {member.sales !== undefined && (
-                  <div className="mt-4 rounded-lg bg-secondary/50 px-3 py-2">
-                    <p className="text-[11px] text-muted-foreground">This Month Sales</p>
-                    <p className="text-sm font-bold text-card-foreground">₹{member.sales.toLocaleString("en-IN")}</p>
+              ) : (
+                filtered.map((member: any) => (
+                  <div key={member._id} className="rounded-xl border border-border bg-card p-5 hover:shadow-md transition-shadow group cursor-pointer" onClick={() => setSelectedStaffId(member._id)}>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold ${member.status === "active" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                          {member.avatar || member.name?.charAt(0) || "U"}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-card-foreground">{member.name}</h3>
+                          <p className="text-[10px] text-muted-foreground font-mono">{member.employeeCode}</p>
+                          <span className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium mt-0.5 ${roleColors[member.role] || "bg-secondary text-secondary-foreground"}`}>{member.role}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={member.status === "active" ? "default" : "secondary"} className={`text-[10px] ${member.status === "active" ? "bg-success/15 text-success hover:bg-success/20 border-0" : "bg-muted text-muted-foreground border-0"}`}>
+                          {member.status === "active" ? "Active" : "Inactive"}
+                        </Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
+                            <button className="rounded-md p-1 hover:bg-secondary transition-all">
+                              <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40" onClick={e => e.stopPropagation()}>
+                            <DropdownMenuItem onClick={() => setSelectedStaffId(member._id)} className="gap-2">
+                              <Eye className="h-3.5 w-3.5" /> View Profile
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleStatusToggle(member._id, member.status)} className="gap-2">
+                              <Edit2 className="h-3.5 w-3.5" /> {member.status === "active" ? "Deactivate" : "Activate"}
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleDelete(member._id, member.name)} className="gap-2 text-destructive focus:text-destructive">
+                              <Trash2 className="h-3.5 w-3.5" /> Delete Member
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </div>
+                    <div className="mt-4 space-y-2 text-sm">
+                      <div className="flex items-center gap-2 text-muted-foreground"><Phone className="h-3.5 w-3.5" /><span>{member.phone || "—"}</span></div>
+                      <div className="flex items-center gap-2 text-muted-foreground"><Mail className="h-3.5 w-3.5" /><span className="truncate">{member.email || "—"}</span></div>
+                      <div className="flex items-center gap-2 text-muted-foreground"><Clock className="h-3.5 w-3.5" /><span>{member.shift || "N/A"} Shift · Since {member.joinDate ? format(new Date(member.joinDate), "dd MMM yyyy") : "N/A"}</span></div>
+                    </div>
+                    {member.sales !== undefined && (
+                      <div className="mt-4 rounded-lg bg-secondary/50 px-3 py-2">
+                        <p className="text-[11px] text-muted-foreground">This Month Sales</p>
+                        <p className="text-sm font-bold text-card-foreground">₹{(member.sales || 0).toLocaleString("en-IN")}</p>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
-          </div>
+                ))
+              )}
+            </div>
+          )}
         </>
       )}
 
       {/* Staff Detail Panel */}
-      {selectedStaff && <StaffDetailPanel member={selectedStaff} onClose={() => setSelectedStaff(null)} />}
+      {selectedStaff && <StaffDetailPanel member={selectedStaff} onClose={() => setSelectedStaffId(null)} />}
 
       {/* Add Staff Dialog — Multi-step */}
       {showAddDialog && (
@@ -275,7 +390,17 @@ const StaffPage = () => {
                     </div>
                     <div className="space-y-1.5">
                       <Label>Phone Number *</Label>
-                      <Input placeholder="+91 XXXXX XXXXX" value={newStaff.phone} onChange={e => update("phone", e.target.value)} required className="bg-background" />
+                      <Input 
+                        placeholder="10-digit number" 
+                        value={newStaff.phone} 
+                        onChange={e => {
+                          const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                          update("phone", val);
+                        }} 
+                        maxLength={10}
+                        required 
+                        className="bg-background" 
+                      />
                     </div>
                     <div className="space-y-1.5">
                       <Label>Email</Label>
@@ -283,7 +408,17 @@ const StaffPage = () => {
                     </div>
                     <div className="space-y-1.5">
                       <Label>Emergency Contact *</Label>
-                      <Input placeholder="+91 XXXXX XXXXX" value={newStaff.emergencyContact} onChange={e => update("emergencyContact", e.target.value)} required className="bg-background" />
+                      <Input 
+                        placeholder="10-digit number" 
+                        value={newStaff.emergencyContact} 
+                        onChange={e => {
+                          const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                          update("emergencyContact", val);
+                        }} 
+                        maxLength={10}
+                        required 
+                        className="bg-background" 
+                      />
                     </div>
                     <div className="space-y-1.5 sm:col-span-2">
                       <Label>Residential Address *</Label>
@@ -445,9 +580,12 @@ const StaffPage = () => {
                   <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
                 )}
                 {addStep < totalSteps ? (
-                  <Button type="button" onClick={() => setAddStep(s => s + 1)} className="gap-2">Next Step →</Button>
+                  <Button type="button" onClick={handleNext} className="gap-2">Next Step →</Button>
                 ) : (
-                  <Button type="submit" className="gap-2"><Save className="h-4 w-4" /> Add Staff Member</Button>
+                  <Button type="submit" className="gap-2" disabled={isSaving}>
+                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Add Staff Member
+                  </Button>
                 )}
               </div>
             </form>

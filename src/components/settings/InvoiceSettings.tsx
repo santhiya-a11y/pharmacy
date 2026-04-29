@@ -9,6 +9,9 @@ import { Save, Upload, X, Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import PrintableInvoice, { InvoiceSettings as InvoiceSettingsType, DEFAULT_INVOICE_SETTINGS, InvoiceData } from "@/components/billing/PrintableInvoice";
 import { toast } from "sonner";
+import { useSettings, useUpdateSettings } from "@/hooks/api/useApi";
+import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 
 const sampleInvoiceData: InvoiceData = {
   invoiceNo: "PHR-1050226020",
@@ -33,13 +36,18 @@ const sampleInvoiceData: InvoiceData = {
 };
 
 export const InvoiceSettingsPanel = () => {
-  const [settings, setSettings] = useState<InvoiceSettingsType>(() => {
-    try {
-      const saved = localStorage.getItem("invoiceSettings");
-      return saved ? { ...DEFAULT_INVOICE_SETTINGS, ...JSON.parse(saved) } : DEFAULT_INVOICE_SETTINGS;
-    } catch { return DEFAULT_INVOICE_SETTINGS; }
-  });
+  const { data: serverSettings, isLoading } = useSettings("invoice");
+  const { mutate: saveSettings, isPending: isSaving } = useUpdateSettings();
+
+  const [settings, setSettings] = useState<InvoiceSettingsType>(DEFAULT_INVOICE_SETTINGS);
   const [showPreview, setShowPreview] = useState(false);
+
+  useEffect(() => {
+    if (serverSettings && typeof serverSettings === "object") {
+      setSettings((prev) => ({ ...prev, ...(serverSettings as any) }));
+    }
+  }, [serverSettings]);
+
   const logoInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -56,8 +64,13 @@ export const InvoiceSettingsPanel = () => {
   };
 
   const handleSave = () => {
-    localStorage.setItem("invoiceSettings", JSON.stringify(settings));
-    toast.success("Invoice settings saved successfully");
+    saveSettings(
+      { key: "invoice", value: settings },
+      {
+        onSuccess: () => toast.success("Invoice settings saved to server"),
+        onError: (err: any) => toast.error(err.message || "Failed to save invoice settings"),
+      }
+    );
   };
 
   const handlePrintPreview = () => {
@@ -220,10 +233,10 @@ export const InvoiceSettingsPanel = () => {
           </CardContent>
         </Card>
 
-        {/* Actions */}
         <div className="flex items-center gap-3">
-          <Button size="sm" onClick={handleSave}>
-            <Save className="h-4 w-4 mr-1" /> Save Invoice Settings
+          <Button size="sm" onClick={handleSave} disabled={isSaving}>
+            {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+            Save Invoice Settings
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowPreview(true)}>
             <Eye className="h-4 w-4 mr-1" /> Preview Invoice

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import {
   Search, Plus, Package, Truck, IndianRupee, Clock, ClipboardList,
   CheckCircle2, XCircle, Eye, Send, MessageCircle, Mail, Copy, Check, Download, Minus, X,
-  AlertTriangle, PackageCheck, Warehouse
+  AlertTriangle, PackageCheck, Warehouse, Loader2
 } from "lucide-react";
 import ImportExportMenu from "@/components/shared/ImportExportMenu";
 import {
@@ -21,6 +21,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import PrintablePurchaseOrder from "@/components/inventory/PrintablePurchaseOrder";
 import { DateRangeFilter } from "@/components/ui/date-range-filter";
+import { 
+  usePurchaseOrders, 
+  usePurchaseOrder, 
+  useCreatePurchaseOrder, 
+  useReceivePurchaseStock, 
+  useRecordPurchasePayment, 
+  useSuppliers 
+} from "@/hooks/api/useApi";
 
 type OrderStatus = "draft" | "ordered" | "delivered" | "cancelled";
 type PaymentStatus = "pending" | "partial" | "paid";
@@ -115,7 +123,7 @@ const paymentConfig = {
 const PurchasesPage = () => {
   const location = useLocation();
   const [search, setSearch] = useState("");
-  const [orders] = useState<PurchaseOrder[]>(initialOrders);
+  // const [orders] = useState<PurchaseOrder[]>(initialOrders); // Replaced by API
   const [selected, setSelected] = useState<PurchaseOrder | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -123,6 +131,7 @@ const PurchasesPage = () => {
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentTarget, setPaymentTarget] = useState<PurchaseOrder | null>(null);
   const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("bank");
 
   // Receive Stock state
   const [showReceiveStock, setShowReceiveStock] = useState(false);
@@ -137,11 +146,41 @@ const PurchasesPage = () => {
   const [poRemarks, setPoRemarks] = useState("");
   const [poDueDate, setPoDueDate] = useState("");
 
+  // API Queries & Mutations
+  const { data: poResponse, isLoading } = usePurchaseOrders({
+    q: search || undefined,
+    status: statusFilter === "all" ? undefined : statusFilter,
+    paymentStatus: paymentFilter === "all" ? undefined : paymentFilter,
+  });
+
+  const { data: supplierResponse } = useSuppliers({ pageSize: 100 });
+  const suppliersList = (supplierResponse?.rows || []) as any[];
+
+  const createPOMutation = useCreatePurchaseOrder();
+  const recordPaymentMutation = useRecordPurchasePayment();
+  const receiveStockMutation = useReceivePurchaseStock();
+
+  const orders = useMemo(() => {
+    return (poResponse?.rows || []).map((o: any) => ({
+      ...o,
+      id: o.poNumber,
+      _dbId: o._id,
+      supplier: o.supplierName || o.supplierId?.name || "Unknown",
+      supplierWhatsapp: o.supplierId?.whatsapp,
+      supplierEmail: o.supplierId?.email,
+      date: new Date(o.date).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }),
+      dueDate: o.dueDate ? new Date(o.dueDate).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }) : "—",
+      deliveryDate: o.deliveryDate ? new Date(o.deliveryDate).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" }) : undefined,
+    }));
+  }, [poResponse]);
+
   // Expiring/low stock items filtered by selected supplier
   const supplierExpiringItems = useMemo(() => {
     if (!poSupplier) return [];
-    return inventoryData.filter(item => item.supplier === poSupplier && (item.status === "expiring" || item.status === "low"));
-  }, [poSupplier]);
+    const selectedSup = suppliersList.find((s: any) => s._id === poSupplier) as any;
+    if (!selectedSup) return [];
+    return inventoryData.filter(item => item.supplier === selectedSup.name && (item.status === "expiring" || item.status === "low"));
+  }, [poSupplier, suppliersList]);
 
   // PDF
   const printRef = useRef<HTMLDivElement>(null);
@@ -152,7 +191,10 @@ const PurchasesPage = () => {
     const state = location.state as { newPOItem?: { drug: string; qty: number; rate: number; supplier: string; batch: string; expiry: string } } | null;
     if (state?.newPOItem) {
       const { drug, qty, rate, supplier } = state.newPOItem;
-      setPoSupplier(supplier);
+      // We need to find the supplier ID by name if possible
+      const sup = suppliersList.find((s: any) => s.name === supplier) as any;
+      if (sup) setPoSupplier(sup._id);
+      
       setPoItems([{ drug, qty, rate }]);
       setPoRemarks("");
       setPoDeliveryDate("");
@@ -162,32 +204,54 @@ const PurchasesPage = () => {
       // Clear navigation state so it doesn't re-trigger
       window.history.replaceState({}, document.title);
     }
-  }, [location.state]);
+  }, [location.state, suppliersList]);
 
-  const filtered = orders.filter(o => {
-    const matchSearch = !search || o.id.toLowerCase().includes(search.toLowerCase()) || o.supplier.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "all" || o.status === statusFilter;
-    const matchPayment = paymentFilter === "all" || o.paymentStatus === paymentFilter;
-    return matchSearch && matchStatus && matchPayment;
-  });
+  const filtered = orders; // Filtering done by API
 
-  const totalPending = orders.filter(o => o.paymentStatus === "pending").reduce((s, o) => s + o.totalAmount, 0);
-  const totalPartial = orders.filter(o => o.paymentStatus === "partial").reduce((s, o) => s + (o.totalAmount - o.paidAmount), 0);
+  const totalPending = orders.filter((o: any) => o.paymentStatus === "pending").reduce((s: number, o: any) => s + o.totalAmount, 0);
+  const totalPartial = orders.filter((o: any) => o.paymentStatus === "partial").reduce((s: number, o: any) => s + (o.totalAmount - o.paidAmount), 0);
 
-  const openPayment = (order: PurchaseOrder) => {
+  const openPayment = (order: any) => {
     setPaymentTarget(order);
     setPaymentAmount((order.totalAmount - order.paidAmount).toString());
     setShowPaymentDialog(true);
   };
 
   const handleRecordPayment = () => {
-    toast.success(`Payment of ₹${paymentAmount} recorded for ${paymentTarget?.id}`);
-    setShowPaymentDialog(false);
+    if (!paymentTarget) return;
+    const amount = parseFloat(paymentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Please enter a valid payment amount");
+      return;
+    }
+
+    const balance = paymentTarget.totalAmount - paymentTarget.paidAmount;
+    if (amount > balance + 0.01) {
+      toast.error(`Amount exceeds balance due (₹${balance})`);
+      return;
+    }
+
+    recordPaymentMutation.mutate({
+      id: (paymentTarget as any)._dbId || paymentTarget.id,
+      body: {
+        amount,
+        method: paymentMethod,
+        note: `Payment recorded from Purchases page`
+      }
+    }, {
+      onSuccess: () => {
+        toast.success(`Payment of ₹${paymentAmount} recorded for ${paymentTarget?.id}`);
+        setShowPaymentDialog(false);
+      },
+      onError: (err: any) => {
+        toast.error(err?.response?.data?.error?.message || "Failed to record payment");
+      }
+    });
   };
 
-  const openReceiveStock = (order: PurchaseOrder) => {
+  const openReceiveStock = (order: any) => {
     setReceiveTarget(order);
-    setReceiveItems(order.items.map(item => ({
+    setReceiveItems(order.items.map((item: any) => ({
       drug: item.drug,
       orderedQty: item.qty,
       receivedQty: item.qty,
@@ -205,17 +269,27 @@ const PurchasesPage = () => {
   };
 
   const handleReceiveStock = () => {
+    if (!receiveTarget) return;
     const validItems = receiveItems.filter(i => i.receivedQty > 0 && i.batch.trim());
     if (validItems.length === 0) {
       toast.error("Please enter batch number for at least one item");
       return;
     }
-    const totalReceived = validItems.reduce((s, i) => s + i.receivedQty, 0);
-    toast.success(`${totalReceived} units from ${receiveTarget?.id} added to inventory`, {
-      description: `${validItems.length} items received from ${receiveTarget?.supplier}`,
+
+    receiveStockMutation.mutate({
+      id: (receiveTarget as any)._dbId || receiveTarget.id,
+      body: { lines: validItems }
+    }, {
+      onSuccess: () => {
+        const totalReceived = validItems.reduce((s, i) => s + i.receivedQty, 0);
+        toast.success(`${totalReceived} units from ${receiveTarget?.id} added to inventory`);
+        setShowReceiveStock(false);
+        setReceiveTarget(null);
+      },
+      onError: (err: any) => {
+        toast.error(err?.response?.data?.error?.message || "Failed to receive stock");
+      }
     });
-    setShowReceiveStock(false);
-    setReceiveTarget(null);
   };
 
   const sendOrderToSupplier = (order: PurchaseOrder) => {
@@ -255,9 +329,25 @@ const PurchasesPage = () => {
       toast.error("Please fill supplier and at least one item");
       return;
     }
-    toast.success(`Purchase Order ${getNewPONumber()} created for ${poSupplier}`);
-    setShowAdd(false);
-    resetPOForm();
+
+    createPOMutation.mutate({
+      supplierId: poSupplier,
+      items: validItems,
+      deliveryDate: poDeliveryDate,
+      dueDate: poDueDate,
+      paymentTerms: poPaymentTerms,
+      remarks: poRemarks,
+      status: "ordered" // Default to ordered if created from form
+    }, {
+      onSuccess: () => {
+        toast.success(`Purchase Order created successfully`);
+        setShowAdd(false);
+        resetPOForm();
+      },
+      onError: (err: any) => {
+        toast.error(err?.response?.data?.error?.message || "Failed to create PO");
+      }
+    });
   };
 
   const resetPOForm = () => {
@@ -362,10 +452,10 @@ const PurchasesPage = () => {
 
       <div className="grid grid-cols-5 gap-3">
         {[
-          { label: "Total Orders", value: orders.length, icon: Package, color: "text-primary" },
-          { label: "Pending Delivery", value: orders.filter(o => o.status === "ordered").length, icon: Truck, color: "text-warning" },
-          { label: "Month Spend", value: `₹${orders.filter(o => o.status === "delivered").reduce((s, o) => s + o.totalAmount, 0).toLocaleString()}`, icon: IndianRupee, color: "text-chart-2" },
-          { label: "Payment Pending", value: `₹${totalPending.toLocaleString()}`, icon: Clock, color: "text-destructive" },
+          { label: "Total Orders", value: (poResponse?.meta?.total as number) || orders.length, icon: Package, color: "text-primary" },
+          { label: "Pending Delivery", value: orders.filter((o: any) => o.status === "ordered").length, icon: Truck, color: "text-warning" },
+          { label: "Month Spend", value: `₹${orders.filter((o: any) => o.status === "delivered").reduce((s: number, o: any) => s + (o.totalAmount || 0), 0).toLocaleString()}`, icon: IndianRupee, color: "text-chart-2" },
+          { label: "Payment Pending", value: `₹${totalPending.toLocaleString()}`, icon: IndianRupee, color: "text-destructive" },
           { label: "Partially Paid", value: `₹${totalPartial.toLocaleString()}`, icon: IndianRupee, color: "text-primary" },
         ].map((s, i) => (
           <Card key={i}>
@@ -420,44 +510,61 @@ const PurchasesPage = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map(order => (
-              <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelected(order)}>
-                <TableCell className="font-semibold text-primary text-sm">{order.id}</TableCell>
-                <TableCell className="text-sm">{order.supplier}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{order.date}</TableCell>
-                <TableCell className="text-sm">{order.items.length} items</TableCell>
-                <TableCell className="text-sm text-right font-semibold">₹{order.totalAmount.toLocaleString()}</TableCell>
-                <TableCell>
-                  <Badge className={`text-[10px] ${statusConfig[order.status].color}`}>{statusConfig[order.status].label}</Badge>
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <Badge className={`text-[10px] ${paymentConfig[order.paymentStatus].color}`}>{paymentConfig[order.paymentStatus].label}</Badge>
-                    {order.paymentStatus === "partial" && (
-                      <p className="text-[9px] text-muted-foreground mt-0.5">₹{order.paidAmount} / ₹{order.totalAmount}</p>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-sm text-right text-muted-foreground">{order.dueDate || "—"}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center gap-1 justify-end" onClick={e => e.stopPropagation()}>
-                    {(order.status === "ordered" || order.status === "delivered") && (
-                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-chart-2 border-chart-2/30 hover:bg-chart-2/10" onClick={() => openReceiveStock(order)}>
-                        <PackageCheck className="h-3 w-3" /> Receive
-                      </Button>
-                    )}
-                    {order.status !== "cancelled" && order.paymentStatus !== "paid" && (
-                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openPayment(order)}>Pay</Button>
-                    )}
-                    {order.status === "draft" && (
-                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => sendOrderToSupplier(order)}>
-                        <Send className="h-3 w-3" />
-                      </Button>
-                    )}
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={9} className="h-24 text-center">
+                  <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Loading purchase orders...</span>
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+            ) : filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                  No purchase orders found
+                </TableCell>
+              </TableRow>
+            ) : (
+              filtered.map(order => (
+                <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setSelected(order)}>
+                  <TableCell className="font-semibold text-primary text-sm">{order.id}</TableCell>
+                  <TableCell className="text-sm">{order.supplier}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{order.date}</TableCell>
+                  <TableCell className="text-sm">{order.items.length} items</TableCell>
+                  <TableCell className="text-sm text-right font-semibold">₹{order.totalAmount.toLocaleString()}</TableCell>
+                  <TableCell>
+                    <Badge className={`text-[10px] ${statusConfig[order.status].color}`}>{statusConfig[order.status].label}</Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <Badge className={`text-[10px] ${paymentConfig[order.paymentStatus].color}`}>{paymentConfig[order.paymentStatus].label}</Badge>
+                      {order.paymentStatus === "partial" && (
+                        <p className="text-[9px] text-muted-foreground mt-0.5">₹{order.paidAmount} / ₹{order.totalAmount}</p>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-right text-muted-foreground">{order.dueDate || "—"}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center gap-1 justify-end" onClick={e => e.stopPropagation()}>
+                      {order.status === "ordered" && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-chart-2 border-chart-2/30 hover:bg-chart-2/10" onClick={() => openReceiveStock(order)}>
+                          <PackageCheck className="h-3 w-3" /> Receive
+                        </Button>
+                      )}
+                      {order.status !== "cancelled" && order.paymentStatus !== "paid" && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => openPayment(order)}>Pay</Button>
+                      )}
+                      {order.status === "draft" && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => sendOrderToSupplier(order)}>
+                          <Send className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </Card>
@@ -548,8 +655,8 @@ const PurchasesPage = () => {
 
               {/* Actions */}
               <div className="space-y-2 pt-2 border-t border-border">
-                {/* Receive Stock - for ordered/delivered POs */}
-                {(selected.status === "ordered" || selected.status === "delivered") && (
+                {/* Receive Stock - for ordered POs */}
+                {selected.status === "ordered" && (
                   <Button
                     size="sm"
                     className="w-full gap-2 bg-chart-2 hover:bg-chart-2/90 text-white"
@@ -633,7 +740,7 @@ const PurchasesPage = () => {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Payment Method</Label>
-                <Select defaultValue="bank">
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                   <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="cash">Cash</SelectItem>
@@ -647,7 +754,10 @@ const PurchasesPage = () => {
           )}
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setShowPaymentDialog(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleRecordPayment}>Record Payment</Button>
+            <Button size="sm" onClick={handleRecordPayment} disabled={recordPaymentMutation.isPending}>
+              {recordPaymentMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Record Payment
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -767,8 +877,9 @@ const PurchasesPage = () => {
 
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowReceiveStock(false)}>Cancel</Button>
-            <Button className="gap-2 bg-chart-2 hover:bg-chart-2/90" onClick={handleReceiveStock}>
-              <PackageCheck className="h-4 w-4" /> Confirm & Add to Inventory
+            <Button className="gap-2 bg-chart-2 hover:bg-chart-2/90" onClick={handleReceiveStock} disabled={receiveStockMutation.isPending}>
+              {receiveStockMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackageCheck className="h-4 w-4" />}
+              Confirm & Add to Inventory
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -794,7 +905,7 @@ const PurchasesPage = () => {
                 <Select value={poSupplier} onValueChange={setPoSupplier}>
                   <SelectTrigger className="h-9"><SelectValue placeholder="Select supplier" /></SelectTrigger>
                   <SelectContent>
-                    {suppliers.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                    {suppliersList.map((s: any) => <SelectItem key={s._id} value={s._id}>{s.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -962,8 +1073,9 @@ const PurchasesPage = () => {
             </Button>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => { setShowAdd(false); resetPOForm(); }}>Cancel</Button>
-              <Button size="sm" onClick={handleCreatePO} className="gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Create PO
+              <Button size="sm" onClick={handleCreatePO} className="gap-1.5" disabled={createPOMutation.isPending}>
+                {createPOMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                Create PO
               </Button>
             </div>
           </DialogFooter>

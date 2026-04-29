@@ -1,8 +1,5 @@
-import { useState } from "react";
-import {
-  Plus, Monitor, Clock, Power, PowerOff, Coffee,
-  Trash2, LogIn, LogOut as LogOutIcon, X
-} from "lucide-react";
+import { useMemo, useState } from "react";
+import { Plus, Monitor, Clock, Power, PowerOff, Coffee, LogIn, LogOut as LogOutIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,47 +10,21 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useRole } from "@/contexts/RoleContext";
+import { useCounterLogin, useCounterLogout, useCounters, useCreateCounter } from "@/hooks/api/useApi";
 
 type CounterStatus = "open" | "closed" | "break";
 
 interface Counter {
-  id: number;
+  _id: string;
   name: string;
   location: string;
-  assignedEmployee: string | null;
-  employeeId: string | null;
+  assignedEmployeeName: string | null;
+  assignedEmployeeId: string | null;
   status: CounterStatus;
-  openedAt: string | null;
+  openedAt: string | null | Date;
   todaySales: number;
   todayTransactions: number;
 }
-
-const initialCounters: Counter[] = [
-  {
-    id: 1, name: "Counter 1", location: "Main Hall - Left",
-    assignedEmployee: "Priya Sharma", employeeId: "EMP-001",
-    status: "open", openedAt: "09:00 AM",
-    todaySales: 12450, todayTransactions: 28
-  },
-  {
-    id: 2, name: "Counter 2", location: "Main Hall - Right",
-    assignedEmployee: "Rahul Kumar", employeeId: "EMP-002",
-    status: "open", openedAt: "09:15 AM",
-    todaySales: 8720, todayTransactions: 19
-  },
-  {
-    id: 3, name: "Counter 3", location: "Near Entrance",
-    assignedEmployee: "Vikram Singh", employeeId: "EMP-004",
-    status: "break", openedAt: "10:00 AM",
-    todaySales: 3200, todayTransactions: 8
-  },
-  {
-    id: 4, name: "Counter 4", location: "Express Billing",
-    assignedEmployee: null, employeeId: null,
-    status: "closed", openedAt: null,
-    todaySales: 0, todayTransactions: 0
-  },
-];
 
 const statusConfig: Record<CounterStatus, { label: string; color: string; icon: typeof Power }> = {
   open: { label: "Open", color: "bg-chart-2/15 text-chart-2 border-chart-2/30", icon: Power },
@@ -63,7 +34,11 @@ const statusConfig: Record<CounterStatus, { label: string; color: string; icon: 
 
 const CountersPage = () => {
   const { currentUser } = useRole();
-  const [counters, setCounters] = useState<Counter[]>(initialCounters);
+  const { data } = useCounters();
+  const counters = (data || []) as Counter[];
+  const { mutate: createCounter, isPending: isCreating } = useCreateCounter();
+  const { mutate: loginCounter, isPending: isLoggingIn } = useCounterLogin();
+  const { mutate: logoutCounter, isPending: isLoggingOut } = useCounterLogout();
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newLocation, setNewLocation] = useState("");
@@ -73,78 +48,46 @@ const CountersPage = () => {
   const totalSales = counters.reduce((s, c) => s + c.todaySales, 0);
 
   // Check if current user is already logged into a counter
-  const myCounter = counters.find(c => c.employeeId === currentUser.employeeId);
+  const myCounter = useMemo(
+    () => counters.find((c) => c.assignedEmployeeId === currentUser.employeeId),
+    [counters, currentUser.employeeId]
+  );
 
   const handleCreate = () => {
     if (!newName.trim()) return;
-    const id = Math.max(...counters.map(c => c.id), 0) + 1;
-    setCounters(prev => [...prev, {
-      id, name: newName.trim(), location: newLocation.trim(),
-      assignedEmployee: null, employeeId: null,
-      status: "closed", openedAt: null,
-      todaySales: 0, todayTransactions: 0
-    }]);
-    setNewName(""); setNewLocation(""); setCreateOpen(false);
-    toast.success(`${newName.trim()} created`);
+    createCounter(
+      { name: newName.trim(), location: newLocation.trim() || undefined },
+      {
+        onSuccess: () => {
+          setNewName("");
+          setNewLocation("");
+          setCreateOpen(false);
+          toast.success(`${newName.trim()} created`);
+        },
+        onError: (err: any) => toast.error(err?.message || "Failed to create counter"),
+      }
+    );
   };
 
-  // Auto-login: current user logs into a counter
   const handleLogin = (counter: Counter) => {
     if (myCounter) {
       toast.error(`You're already logged into ${myCounter.name}. Log out first.`);
       return;
     }
-    const now = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-    setCounters(prev => prev.map(c =>
-      c.id === counter.id
-        ? {
-            ...c,
-            assignedEmployee: currentUser.name,
-            employeeId: currentUser.employeeId,
-            status: "open",
-            openedAt: now
-          }
-        : c
-    ));
-    toast.success(`You're now logged into ${counter.name}`);
+    loginCounter(counter._id, {
+      onSuccess: () => toast.success(`You're now logged into ${counter.name}`),
+      onError: (err: any) => toast.error(err?.message || "Failed to login to counter"),
+    });
   };
 
-  // Logout from counter
   const handleLogout = (counter: Counter) => {
-    setCounters(prev => prev.map(c =>
-      c.id === counter.id
-        ? { ...c, assignedEmployee: null, employeeId: null, status: "closed", openedAt: null }
-        : c
-    ));
-    toast.info(`Logged out from ${counter.name}`);
+    logoutCounter(counter._id, {
+      onSuccess: () => toast.info(`Logged out from ${counter.name}`),
+      onError: (err: any) => toast.error(err?.message || "Failed to logout from counter"),
+    });
   };
 
-  const toggleStatus = (counter: Counter, newStatus: CounterStatus) => {
-    const now = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
-    setCounters(prev => prev.map(c =>
-      c.id === counter.id
-        ? {
-            ...c,
-            status: newStatus,
-            openedAt: newStatus === "open" ? now : newStatus === "closed" ? null : c.openedAt,
-            // If closing, also log out the employee
-            ...(newStatus === "closed" ? { assignedEmployee: null, employeeId: null } : {})
-          }
-        : c
-    ));
-    toast.success(`${counter.name} → ${statusConfig[newStatus].label}`);
-  };
-
-  const handleDelete = (counter: Counter) => {
-    if (counter.status === "open") {
-      toast.error("Close the counter before deleting");
-      return;
-    }
-    setCounters(prev => prev.filter(c => c.id !== counter.id));
-    toast.success(`${counter.name} deleted`);
-  };
-
-  const isMe = (counter: Counter) => counter.employeeId === currentUser.employeeId;
+  const isMe = (counter: Counter) => counter.assignedEmployeeId === currentUser.employeeId;
 
   return (
     <div className="space-y-6">
@@ -171,7 +114,9 @@ const CountersPage = () => {
             <p className="text-sm font-semibold text-foreground">
               You're active on <span className="text-chart-2">{myCounter.name}</span>
             </p>
-            <p className="text-xs text-muted-foreground">{myCounter.location} · Since {myCounter.openedAt}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {myCounter.location} · Since {myCounter.openedAt ? new Date(myCounter.openedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "-"}
+                    </p>
           </div>
           <Button size="sm" variant="outline" className="gap-1.5" onClick={() => handleLogout(myCounter)}>
             <LogOutIcon className="h-3.5 w-3.5" /> Log Out
@@ -264,14 +209,14 @@ const CountersPage = () => {
 
               <CardContent className="space-y-4">
                 {/* Logged-in Employee */}
-                {counter.assignedEmployee ? (
+                {counter.assignedEmployeeName ? (
                   <div className="flex items-center gap-2.5 bg-secondary/50 rounded-lg p-3">
                     <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
-                      {counter.assignedEmployee.split(" ").map(n => n[0]).join("")}
+                      {counter.assignedEmployeeName.split(" ").map(n => n[0]).join("")}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{counter.assignedEmployee}</p>
-                      <p className="text-[11px] text-muted-foreground">{counter.employeeId} · Logged in</p>
+                      <p className="text-sm font-medium text-foreground truncate">{counter.assignedEmployeeName}</p>
+                      <p className="text-[11px] text-muted-foreground">{counter.assignedEmployeeId} · Logged in</p>
                     </div>
                     {isMine && (
                       <Badge className="bg-chart-2/15 text-chart-2 border-chart-2/30 text-[9px]">You</Badge>
@@ -288,7 +233,7 @@ const CountersPage = () => {
                   <div className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5 text-muted-foreground">
                       <Clock className="h-3.5 w-3.5" />
-                      Since {counter.openedAt}
+                      Since {counter.openedAt ? new Date(counter.openedAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "-"}
                     </div>
                     <div className="flex gap-3">
                       <span className="font-medium text-foreground">₹{counter.todaySales.toLocaleString("en-IN")}</span>
@@ -304,43 +249,23 @@ const CountersPage = () => {
                     <Button
                       size="sm" className="flex-1 gap-1.5"
                       onClick={() => handleLogin(counter)}
-                      disabled={!!myCounter}
+                      disabled={!!myCounter || isLoggingIn || isLoggingOut}
                     >
                       <LogIn className="h-3.5 w-3.5" /> Login to Counter
                     </Button>
                   )}
 
                   {/* My counter actions */}
-                  {isMine && counter.status === "open" && (
-                    <>
-                      <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => toggleStatus(counter, "break")}>
-                        <Coffee className="h-3.5 w-3.5" /> Break
-                      </Button>
-                      <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => handleLogout(counter)}>
-                        <LogOutIcon className="h-3.5 w-3.5" /> Log Out
-                      </Button>
-                    </>
-                  )}
-                  {isMine && counter.status === "break" && (
-                    <Button size="sm" className="flex-1 gap-1.5" onClick={() => toggleStatus(counter, "open")}>
-                      <Power className="h-3.5 w-3.5" /> Resume
+                  {isMine && counter.status !== "closed" && (
+                    <Button size="sm" variant="outline" className="flex-1 gap-1.5" onClick={() => handleLogout(counter)}>
+                      <LogOutIcon className="h-3.5 w-3.5" /> Log Out
                     </Button>
                   )}
 
                   {/* Other person's counter - admin can force close */}
-                  {counter.assignedEmployee && !isMine && counter.status !== "closed" && (
-                    <Button size="sm" variant="outline" className="flex-1 gap-1.5 text-destructive" onClick={() => toggleStatus(counter, "closed")}>
+                  {counter.assignedEmployeeName && !isMine && counter.status !== "closed" && (
+                    <Button size="sm" variant="outline" className="flex-1 gap-1.5 text-destructive" onClick={() => handleLogout(counter)}>
                       <PowerOff className="h-3.5 w-3.5" /> Force Close
-                    </Button>
-                  )}
-
-                  {/* Delete - only when closed */}
-                  {counter.status === "closed" && (
-                    <Button
-                      size="sm" variant="ghost" className="text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(counter)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   )}
                 </div>
@@ -377,7 +302,7 @@ const CountersPage = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={!newName.trim()}>Create Counter</Button>
+            <Button onClick={handleCreate} disabled={!newName.trim() || isCreating}>Create Counter</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

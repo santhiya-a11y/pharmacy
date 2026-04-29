@@ -5,6 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useCreateMedicine } from "@/hooks/api/useApi";
+import { toast } from "sonner";
 
 interface AddMedicineDialogProps {
   open: boolean;
@@ -19,17 +21,29 @@ const categories = [
 const dosageForms = ["Tablet", "Capsule", "Syrup", "Injection", "Cream", "Drops", "Inhaler", "Powder", "Ointment"];
 
 const AddMedicineDialog = ({ open, onClose }: AddMedicineDialogProps) => {
+  const { mutate: create, isPending } = useCreateMedicine();
   const [formData, setFormData] = useState({
     brandName: "", genericName: "", manufacturer: "", category: "",
-    schedule: "", dosageForm: "", packSize: "", mrp: "", barcode: "", description: ""
+    schedule: "OTC", dosageForm: "Tablet", packSize: "", mrp: "", barcode: "", hsn: "", description: ""
   });
 
   const update = (field: string, value: string) => setFormData(prev => ({ ...prev, [field]: value }));
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Save to database
-    onClose();
+    create(formData, {
+      onSuccess: () => {
+        toast.success("Medicine added to database");
+        onClose();
+        setFormData({
+          brandName: "", genericName: "", manufacturer: "", category: "",
+          schedule: "OTC", dosageForm: "Tablet", packSize: "", mrp: "", barcode: "", hsn: "", description: ""
+        });
+      },
+      onError: (err: any) => {
+        toast.error(err.message || "Failed to add medicine");
+      }
+    });
   };
 
   if (!open) return null;
@@ -58,7 +72,7 @@ const AddMedicineDialog = ({ open, onClose }: AddMedicineDialogProps) => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Primary Info — most important fields first (progressive disclosure) */}
+          {/* Primary Info */}
           <div className="space-y-1.5">
             <p className="text-sm font-semibold text-card-foreground">Basic Information</p>
             <p className="text-xs text-muted-foreground">Required fields to identify the medicine</p>
@@ -116,28 +130,31 @@ const AddMedicineDialog = ({ open, onClose }: AddMedicineDialogProps) => {
               <Input id="packSize" placeholder="e.g. 10 tablets" value={formData.packSize} onChange={e => update("packSize", e.target.value)} required className="bg-background" />
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="mrp">MRP (₹) *</Label>
               <Input id="mrp" type="number" min="0" step="0.01" placeholder="0.00" value={formData.mrp} onChange={e => update("mrp", e.target.value)} required className="bg-background" />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="barcode">Barcode</Label>
-              <Input id="barcode" placeholder="Scan or enter barcode" value={formData.barcode} onChange={e => update("barcode", e.target.value)} className="bg-background" />
+              <Input id="barcode" placeholder="Scan barcode" value={formData.barcode} onChange={e => update("barcode", e.target.value)} className="bg-background" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="hsn">HSN Code</Label>
+              <Input id="hsn" placeholder="e.g. 3004" value={formData.hsn} onChange={e => update("hsn", e.target.value)} className="bg-background" />
             </div>
           </div>
 
-          {/* Optional */}
           <div className="space-y-1.5">
             <Label htmlFor="description">Description (optional)</Label>
             <Textarea id="description" placeholder="Usage notes, storage instructions..." value={formData.description} onChange={e => update("description", e.target.value)} className="bg-background min-h-[72px]" />
           </div>
 
-          {/* Actions — primary action on the right (Fitts's Law) */}
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-border">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit" className="gap-2">
-              <Save className="h-4 w-4" /> Save Medicine
+            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>Cancel</Button>
+            <Button type="submit" className="gap-2" disabled={isPending}>
+              {isPending ? <Save className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save Medicine
             </Button>
           </div>
         </form>

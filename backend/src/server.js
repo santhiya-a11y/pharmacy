@@ -1,0 +1,18 @@
+import { loadEnv, env } from "./config/env.js";
+import { connectDb } from "./config/db.js";
+import { createApp } from "./app.js";
+
+loadEnv();
+
+async function main() {
+  await connectDb();
+  const app = createApp();
+  app.listen(env.port, () => {
+    console.log(`API listening on port ${env.port} (${env.nodeEnv})`);
+  });
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

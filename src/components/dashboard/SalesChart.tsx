@@ -1,6 +1,6 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
-const data = [
+const defaultData = [
   { date: "01 Mar", sales: 12400 },
   { date: "02 Mar", sales: 18200 },
   { date: "03 Mar", sales: 15600 },
@@ -10,7 +10,10 @@ const data = [
   { date: "07 Mar", sales: 21300 },
 ];
 
-export const SalesChart = () => {
+export type SalesChartPoint = { date: string; sales: number };
+
+export const SalesChart = ({ data }: { data?: SalesChartPoint[] }) => {
+  const chartData = data?.length ? data : defaultData;
   return (
     <div className="rounded-xl border border-border bg-card p-6 animate-fade-in">
       <div className="flex items-center justify-between mb-6">
@@ -25,7 +28,7 @@ export const SalesChart = () => {
         </select>
       </div>
       <ResponsiveContainer width="100%" height={300}>
-        <AreaChart data={data}>
+        <AreaChart data={chartData}>
           <defs>
             <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="hsl(243 75% 59%)" stopOpacity={0.3} />

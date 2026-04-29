@@ -1,13 +1,26 @@
+import type { LucideIcon } from "lucide-react";
 import { Package, Clock, ShoppingCart, IndianRupee } from "lucide-react";
 
-const healthItems = [
+const defaultHealthItems: {
+  label: string;
+  value: string;
+  sublabel: string;
+  icon: LucideIcon;
+  color: string;
+  bg: string;
+}[] = [
   { label: "Low Stock", value: "8", sublabel: "medicines", icon: Package, color: "text-destructive", bg: "bg-destructive/10" },
   { label: "Expiry Risk", value: "₹12,400", sublabel: "in 30 days", icon: Clock, color: "text-warning", bg: "bg-warning/10" },
   { label: "Reorder Needed", value: "12", sublabel: "items today", icon: ShoppingCart, color: "text-primary", bg: "bg-primary/10" },
   { label: "Today's Revenue", value: "₹24,500", sublabel: "48 bills", icon: IndianRupee, color: "text-success", bg: "bg-success/10" },
 ];
 
-export const InventoryHealthBar = () => {
+export const InventoryHealthBar = ({
+  items,
+}: {
+  items?: typeof defaultHealthItems;
+}) => {
+  const healthItems = items?.length ? items : defaultHealthItems;
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {healthItems.map((item) => (

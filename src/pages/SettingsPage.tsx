@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,9 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { InvoiceSettingsPanel } from "@/components/settings/InvoiceSettings";
+import { useSettings, useUpdateSettings } from "@/hooks/api/useApi";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 type SettingsTab = "store" | "billing" | "invoice" | "notifications" | "security" | "printing" | "bags" | "integrations";
 
@@ -48,12 +51,50 @@ const DEFAULT_BAG_CONFIGS: BagConfig[] = [
 
 const SettingsPage = () => {
   const [activeTab, setActiveTab] = useState<SettingsTab>("store");
+  const { mutate: updateSettings, isPending: isSaving } = useUpdateSettings();
+
+  // Store Settings
+  const { data: storeData, isLoading: loadingStore } = useSettings("store");
+  const [store, setStore] = useState({ name: "", license: "", phone: "", email: "", address: "", gstin: "", dlExpiry: "" });
+  useEffect(() => { if (storeData) setStore(prev => ({ ...prev, ...(storeData as any) })); }, [storeData]);
+
+  // Billing Settings
+  const { data: billingData, isLoading: loadingBilling } = useSettings("billing");
+  const [billing, setBilling] = useState({ defaultGst: "12", prefix: "INV-", start: "4500", methods: ["Cash", "UPI / QR", "Credit/Debit Card"], autoDiscount: true });
+  useEffect(() => { if (billingData) setBilling(prev => ({ ...prev, ...(billingData as any) })); }, [billingData]);
+
+  // Notification Settings
+  const { data: notifyData, isLoading: loadingNotify } = useSettings("notifications");
+  const [notify, setNotify] = useState({ lowStock: true, expiry: true, refill: true, dailySales: false, attendance: true, whatsapp: false });
+  useEffect(() => { if (notifyData) setNotify(prev => ({ ...prev, ...(notifyData as any) })); }, [notifyData]);
+
+  // Security Settings
+  const { data: securityData, isLoading: loadingSecurity } = useSettings("security");
+  const [security, setSecurity] = useState({ tfa: false, timeout: true, controlledLogs: true, approval: true, biometric: false });
+  useEffect(() => { if (securityData) setSecurity(prev => ({ ...prev, ...(securityData as any) })); }, [securityData]);
+
+  // Printing Settings
+  const { data: printData, isLoading: loadingPrint } = useSettings("printing");
+  const [print, setPrint] = useState({ receiptWidth: "80mm", labelSize: "50x25mm", showLogo: true, showGst: true, showBatch: true, showDosage: true, autoprint: false });
+  useEffect(() => { if (printData) setPrint(prev => ({ ...prev, ...(printData as any) })); }, [printData]);
+
+  // Bag Settings
+  const { data: bagsData, isLoading: loadingBags } = useSettings("bags");
   const [bagConfigs, setBagConfigs] = useState<BagConfig[]>(DEFAULT_BAG_CONFIGS);
+  useEffect(() => { if (bagsData && Array.isArray(bagsData)) setBagConfigs(bagsData); }, [bagsData]);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingBagId, setUploadingBagId] = useState<string | null>(null);
   const [showAddBag, setShowAddBag] = useState(false);
   const [editingBag, setEditingBag] = useState<BagConfig | null>(null);
   const [newBag, setNewBag] = useState({ name: "", size: "Medium", price: 0, icon: "🛍️" });
+
+  const save = (key: string, value: any) => {
+    updateSettings({ key, value }, {
+      onSuccess: () => toast.success(`${key.charAt(0).toUpperCase() + key.slice(1)} settings saved`),
+      onError: (err: any) => toast.error(err.message || "Failed to save settings")
+    });
+  };
 
   const handleBagImageUpload = (bagId: string) => {
     setUploadingBagId(bagId);
@@ -134,18 +175,27 @@ const SettingsPage = () => {
                 <CardDescription>Your pharmacy details for invoices and compliance</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5"><Label className="text-xs">Pharmacy Name</Label><Input defaultValue="PharmaCare Medical Store" className="h-9" /></div>
-                  <div className="space-y-1.5"><Label className="text-xs">License Number</Label><Input defaultValue="DL-2024-MH-12345" className="h-9" /></div>
-                  <div className="space-y-1.5"><Label className="text-xs">Phone</Label><Input defaultValue="022-12345678" className="h-9" /></div>
-                  <div className="space-y-1.5"><Label className="text-xs">Email</Label><Input defaultValue="info@pharmacare.in" className="h-9" /></div>
-                </div>
-                <div className="space-y-1.5"><Label className="text-xs">Address</Label><Input defaultValue="123, MG Road, Andheri West, Mumbai - 400058" className="h-9" /></div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5"><Label className="text-xs">GST Number</Label><Input defaultValue="27AABCM1234L1Z5" className="h-9" /></div>
-                  <div className="space-y-1.5"><Label className="text-xs">Drug License Expiry</Label><Input type="date" defaultValue="2027-03-31" className="h-9" /></div>
-                </div>
-                <Button size="sm"><Save className="h-4 w-4 mr-1" />Save Changes</Button>
+                {loadingStore ? (
+                  <div className="py-12 flex flex-col items-center justify-center gap-2 text-muted-foreground"><Loader2 className="h-6 w-6 animate-spin" /><p className="text-xs">Loading store info...</p></div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5"><Label className="text-xs">Pharmacy Name</Label><Input value={store.name} onChange={e => setStore(p=>({...p, name: e.target.value}))} className="h-9" /></div>
+                      <div className="space-y-1.5"><Label className="text-xs">License Number</Label><Input value={store.license} onChange={e => setStore(p=>({...p, license: e.target.value}))} className="h-9" /></div>
+                      <div className="space-y-1.5"><Label className="text-xs">Phone</Label><Input value={store.phone} onChange={e => setStore(p=>({...p, phone: e.target.value}))} className="h-9" /></div>
+                      <div className="space-y-1.5"><Label className="text-xs">Email</Label><Input value={store.email} onChange={e => setStore(p=>({...p, email: e.target.value}))} className="h-9" /></div>
+                    </div>
+                    <div className="space-y-1.5"><Label className="text-xs">Address</Label><Input value={store.address} onChange={e => setStore(p=>({...p, address: e.target.value}))} className="h-9" /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5"><Label className="text-xs">GST Number</Label><Input value={store.gstin} onChange={e => setStore(p=>({...p, gstin: e.target.value}))} className="h-9" /></div>
+                      <div className="space-y-1.5"><Label className="text-xs">Drug License Expiry</Label><Input type="date" value={store.dlExpiry} onChange={e => setStore(p=>({...p, dlExpiry: e.target.value}))} className="h-9" /></div>
+                    </div>
+                    <Button size="sm" onClick={() => save("store", store)} disabled={isSaving}>
+                      {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                      Save Changes
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
           )}
@@ -157,25 +207,32 @@ const SettingsPage = () => {
                 <CardDescription>GST rates, invoice settings, and payment modes</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-1.5"><Label className="text-xs">Default GST Rate (%)</Label><Input type="number" defaultValue="12" className="h-9" /></div>
-                  <div className="space-y-1.5"><Label className="text-xs">Invoice Prefix</Label><Input defaultValue="INV-" className="h-9" /></div>
-                  <div className="space-y-1.5"><Label className="text-xs">Bill Counter Start</Label><Input type="number" defaultValue="4500" className="h-9" /></div>
-                </div>
-                <div className="space-y-3">
-                  <Label className="text-xs font-semibold">Payment Methods</Label>
-                  {["Cash", "UPI / QR", "Credit/Debit Card", "Community Credit", "Insurance"].map(m => (
-                    <div key={m} className="flex items-center justify-between py-1">
-                      <span className="text-sm">{m}</span>
-                      <Switch defaultChecked />
+                {loadingBilling ? <div className="py-12 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div> : (
+                  <>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-1.5"><Label className="text-xs">Default GST Rate (%)</Label><Input type="number" value={billing.defaultGst} onChange={e=>setBilling(p=>({...p, defaultGst: e.target.value}))} className="h-9" /></div>
+                      <div className="space-y-1.5"><Label className="text-xs">Invoice Prefix</Label><Input value={billing.prefix} onChange={e=>setBilling(p=>({...p, prefix: e.target.value}))} className="h-9" /></div>
+                      <div className="space-y-1.5"><Label className="text-xs">Bill Counter Start</Label><Input type="number" value={billing.start} onChange={e=>setBilling(p=>({...p, start: e.target.value}))} className="h-9" /></div>
                     </div>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between py-1">
-                  <div><p className="text-sm font-medium">Auto-apply discounts</p><p className="text-[11px] text-muted-foreground">Automatically apply scheme discounts during billing</p></div>
-                  <Switch defaultChecked />
-                </div>
-                <Button size="sm"><Save className="h-4 w-4 mr-1" />Save Changes</Button>
+                    <div className="space-y-3">
+                      <Label className="text-xs font-semibold">Payment Methods</Label>
+                      {["Cash", "UPI / QR", "Credit/Debit Card", "Community Credit", "Insurance"].map(m => (
+                        <div key={m} className="flex items-center justify-between py-1">
+                          <span className="text-sm">{m}</span>
+                          <Switch checked={billing.methods.includes(m)} onCheckedChange={on => setBilling(p => ({ ...p, methods: on ? [...p.methods, m] : p.methods.filter(x => x !== m) }))} />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between py-1 border-t pt-3">
+                      <div><p className="text-sm font-medium">Auto-apply discounts</p><p className="text-[11px] text-muted-foreground">Automatically apply scheme discounts during billing</p></div>
+                      <Switch checked={billing.autoDiscount} onCheckedChange={v => setBilling(p => ({ ...p, autoDiscount: v }))} />
+                    </div>
+                    <Button size="sm" onClick={() => save("billing", billing)} disabled={isSaving}>
+                      {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                      Save Changes
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
           )}
@@ -189,20 +246,27 @@ const SettingsPage = () => {
                 <CardDescription>Configure alerts and reminders</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {[
-                  { label: "Low Stock Alerts", desc: "Get notified when stock falls below reorder level", on: true },
-                  { label: "Expiry Alerts", desc: "Alert 30 days before medicine expiry", on: true },
-                  { label: "Patient Refill Reminders", desc: "Send SMS reminders for prescription refills", on: true },
-                  { label: "Daily Sales Summary", desc: "Receive end-of-day sales report via email", on: false },
-                  { label: "Staff Attendance Alerts", desc: "Notify when staff miss clock-in time", on: true },
-                  { label: "WhatsApp Notifications", desc: "Send notifications via WhatsApp", on: false },
-                ].map(n => (
-                  <div key={n.label} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <div><p className="text-sm font-medium">{n.label}</p><p className="text-[11px] text-muted-foreground">{n.desc}</p></div>
-                    <Switch defaultChecked={n.on} />
-                  </div>
-                ))}
-                <Button size="sm"><Save className="h-4 w-4 mr-1" />Save Changes</Button>
+                {loadingNotify ? <div className="py-12 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div> : (
+                  <>
+                    {[
+                      { key: "lowStock", label: "Low Stock Alerts", desc: "Get notified when stock falls below reorder level" },
+                      { key: "expiry", label: "Expiry Alerts", desc: "Alert 30 days before medicine expiry" },
+                      { key: "refill", label: "Patient Refill Reminders", desc: "Send SMS reminders for prescription refills" },
+                      { key: "dailySales", label: "Daily Sales Summary", desc: "Receive end-of-day sales report via email" },
+                      { key: "attendance", label: "Staff Attendance Alerts", desc: "Notify when staff miss clock-in time" },
+                      { key: "whatsapp", label: "WhatsApp Notifications", desc: "Send notifications via WhatsApp" },
+                    ].map(n => (
+                      <div key={n.key} className="flex items-center justify-between py-2 border-b last:border-0">
+                        <div><p className="text-sm font-medium">{n.label}</p><p className="text-[11px] text-muted-foreground">{n.desc}</p></div>
+                        <Switch checked={(notify as any)[n.key]} onCheckedChange={v => setNotify(p => ({ ...p, [n.key]: v }))} />
+                      </div>
+                    ))}
+                    <Button className="mt-2" size="sm" onClick={() => save("notifications", notify)} disabled={isSaving}>
+                      {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                      Save Changes
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
           )}
@@ -214,19 +278,26 @@ const SettingsPage = () => {
                 <CardDescription>Access control and compliance</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {[
-                  { label: "Two-Factor Authentication", desc: "Require 2FA for admin accounts", on: false },
-                  { label: "Session Timeout", desc: "Auto-logout after 30 minutes of inactivity", on: true },
-                  { label: "Controlled Drug Logging", desc: "Mandatory log for Schedule H1/X dispensing", on: true },
-                  { label: "Price Override Approval", desc: "Require admin approval for price changes", on: true },
-                  { label: "Biometric Login", desc: "Allow fingerprint-based staff login", on: false },
-                ].map(s => (
-                  <div key={s.label} className="flex items-center justify-between py-2 border-b last:border-0">
-                    <div><p className="text-sm font-medium">{s.label}</p><p className="text-[11px] text-muted-foreground">{s.desc}</p></div>
-                    <Switch defaultChecked={s.on} />
-                  </div>
-                ))}
-                <Button size="sm"><Save className="h-4 w-4 mr-1" />Save Changes</Button>
+                {loadingSecurity ? <div className="py-12 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div> : (
+                  <>
+                    {[
+                      { key: "tfa", label: "Two-Factor Authentication", desc: "Require 2FA for admin accounts" },
+                      { key: "timeout", label: "Session Timeout", desc: "Auto-logout after 30 minutes of inactivity" },
+                      { key: "controlledLogs", label: "Controlled Drug Logging", desc: "Mandatory log for Schedule H1/X dispensing" },
+                      { key: "approval", label: "Price Override Approval", desc: "Require admin approval for price changes" },
+                      { key: "biometric", label: "Biometric Login", desc: "Allow fingerprint-based staff login" },
+                    ].map(s => (
+                      <div key={s.key} className="flex items-center justify-between py-2 border-b last:border-0">
+                        <div><p className="text-sm font-medium">{s.label}</p><p className="text-[11px] text-muted-foreground">{s.desc}</p></div>
+                        <Switch checked={(security as any)[s.key]} onCheckedChange={v => setSecurity(p => ({ ...p, [s.key]: v }))} />
+                      </div>
+                    ))}
+                    <Button className="mt-2" size="sm" onClick={() => save("security", security)} disabled={isSaving}>
+                      {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                      Save Changes
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
           )}
@@ -238,23 +309,30 @@ const SettingsPage = () => {
                 <CardDescription>Configure receipt and label printing</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5"><Label className="text-xs">Receipt Width</Label><Input defaultValue="80mm" className="h-9" /></div>
-                  <div className="space-y-1.5"><Label className="text-xs">Label Size</Label><Input defaultValue="50x25mm" className="h-9" /></div>
-                </div>
-                {[
-                  { label: "Print Store Logo", on: true },
-                  { label: "Print GST Details", on: true },
-                  { label: "Print Batch Number", on: true },
-                  { label: "Print Dosage Instructions", on: true },
-                  { label: "Auto-print on Bill Save", on: false },
-                ].map(p => (
-                  <div key={p.label} className="flex items-center justify-between py-1">
-                    <span className="text-sm">{p.label}</span>
-                    <Switch defaultChecked={p.on} />
-                  </div>
-                ))}
-                <Button size="sm"><Save className="h-4 w-4 mr-1" />Save Changes</Button>
+                {loadingPrint ? <div className="py-12 flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div> : (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5"><Label className="text-xs">Receipt Width</Label><Input value={print.receiptWidth} onChange={e=>setPrint(p=>({...p, receiptWidth: e.target.value}))} className="h-9" /></div>
+                      <div className="space-y-1.5"><Label className="text-xs">Label Size</Label><Input value={print.labelSize} onChange={e=>setPrint(p=>({...p, labelSize: e.target.value}))} className="h-9" /></div>
+                    </div>
+                    {[
+                      { key: "showLogo", label: "Print Store Logo" },
+                      { key: "showGst", label: "Print GST Details" },
+                      { key: "showBatch", label: "Print Batch Number" },
+                      { key: "showDosage", label: "Print Dosage Instructions" },
+                      { key: "autoprint", label: "Auto-print on Bill Save" },
+                    ].map(p => (
+                      <div key={p.key} className="flex items-center justify-between py-1">
+                        <span className="text-sm">{p.label}</span>
+                        <Switch checked={(print as any)[p.key]} onCheckedChange={v => setPrint(pr => ({ ...pr, [p.key]: v }))} />
+                      </div>
+                    ))}
+                    <Button size="sm" onClick={() => save("printing", print)} disabled={isSaving}>
+                      {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                      Save Changes
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
           )}
@@ -314,7 +392,10 @@ const SettingsPage = () => {
                   </button>
                 </div>
                 <div className="mt-4">
-                  <Button size="sm"><Save className="h-4 w-4 mr-1" />Save Bag Settings</Button>
+                  <Button size="sm" onClick={() => save("bags", bagConfigs)} disabled={isSaving}>
+                    {isSaving ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Save className="h-4 w-4 mr-1" />}
+                    Save Bag Settings
+                  </Button>
                 </div>
 
                 {/* Add Bag Dialog */}

@@ -6,6 +6,7 @@ import { countersApi, customersApi, holdsApi, posApi } from "@/lib/api/endpoints
 import { buildPosSalePayload, type CartLine } from "@/lib/pos/salePayload";
 import { parseApiError, isErrorCode } from "@/lib/api/errors";
 import type { ProductSearchRow } from "@/lib/api/types";
+import { generateId } from "@/lib/utils";
 import {
   Search, Plus, Minus, Trash2, CreditCard, Banknote, Smartphone,
   ShoppingBag, Pill, ArrowLeft, Keyboard, Clock, User, Pause, Printer, Hash,
@@ -255,7 +256,7 @@ const POSBilling = () => {
   }, []);
 
   const addBagToCart = (bag: BagItem) => {
-    const bagId = `bag-${crypto.randomUUID()}`;
+    const bagId = `bag-${generateId()}`;
     setCart(prev => [...prev, {
       sno: prev.length + 1, id: bagId,
       name: bag.name, description: bag.size + " bag", mfr: "—",
@@ -444,7 +445,7 @@ const POSBilling = () => {
       return;
     }
     setIsProcessing(true);
-    const idem = checkoutIdempotencyRef.current ?? crypto.randomUUID();
+    const idem = checkoutIdempotencyRef.current ?? generateId();
     checkoutIdempotencyRef.current = idem;
     try {
       const payments = isSplitPayment

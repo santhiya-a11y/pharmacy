@@ -23,7 +23,13 @@ export async function listStock({ q, page = 1, pageSize = 20, sort = "createdAt:
   } else if (type === "expiring") {
     filter.expiryDate = { $gte: now, $lte: soon };
   } else if (type === "low_stock") {
-    filter.qtyOnHand = { $gt: 0, $lte: LOW_STOCK_THRESHOLD };
+    const productTotals = await ProductBatch.aggregate([
+      { $match: { qtyOnHand: { $gt: 0 } } },
+      { $group: { _id: "$productId", totalStock: { $sum: "$qtyOnHand" } } },
+      { $match: { totalStock: { $lte: LOW_STOCK_THRESHOLD } } }
+    ]);
+    const lowStockProductIds = productTotals.map(pt => pt._id);
+    filter.productId = { $in: lowStockProductIds };
   } else if (type === "dead_stock") {
     const age = new Date();
     age.setDate(age.getDate() - 90);
@@ -56,8 +62,31 @@ export async function listStock({ q, page = 1, pageSize = 20, sort = "createdAt:
     ProductBatch.countDocuments(filter),
   ]);
 
+  const productIds = [...new Set(rows.map(r => String(r.productId?._id)))].filter(Boolean);
+  
+  const productTotals = await ProductBatch.aggregate([
+    { $match: { productId: { $in: productIds.map(id => new mongoose.Types.ObjectId(id)) } } },
+    { $group: { _id: "$productId", totalStock: { $sum: "$qtyOnHand" } } }
+  ]);
+  const stockMap = {};
+  productTotals.forEach(pt => {
+    stockMap[String(pt._id)] = pt.totalStock;
+  });
+
   const data = rows.map((b) => {
     const p = b.productId;
+    const pidStr = String(p?._id);
+    const totalProdStock = stockMap[pidStr] || b.qtyOnHand;
+
+    let computedStatus = "safe";
+    if (b.expiryDate < now) {
+      computedStatus = "expired";
+    } else if (b.expiryDate <= soon) {
+      computedStatus = "expiring";
+    } else if (totalProdStock <= LOW_STOCK_THRESHOLD) {
+      computedStatus = "low";
+    }
+    
     return {
       id: String(b._id),
       name: p?.name,
@@ -70,7 +99,7 @@ export async function listStock({ q, page = 1, pageSize = 20, sort = "createdAt:
       sgst: b.sgstPct,
       cgst: b.cgstPct,
       rack: b.rack,
-      status: b.status,
+      status: computedStatus,
       purchasePrice: b.purchaseRate,
       supplier: b.supplierId?.name || "",
     };
@@ -165,15 +194,27 @@ export async function summarizeInventory() {
   const now = startOfDay(new Date());
   const soon = endOfDay(addDays(now, EXPIRY_WINDOW_DAYS));
 
+  // Determine which products have low total stock
+  const productTotals = await ProductBatch.aggregate([
+    { $match: { qtyOnHand: { $gt: 0 } } },
+    { $group: { _id: "$productId", totalStock: { $sum: "$qtyOnHand" } } },
+    { $match: { totalStock: { $lte: LOW_STOCK_THRESHOLD } } }
+  ]);
+  const lowStockProductIds = productTotals.map(pt => pt._id);
+
   const age = new Date();
   age.setDate(age.getDate() - 90);
 
-  const [totalSkus, expiringSoon, lowStock, expired, deadStock, expiredValue] = await Promise.all([
-    Product.countDocuments(),
-    ProductBatch.countDocuments({ expiryDate: { $gte: now, $lte: soon }, qtyOnHand: { $gt: 0 } }),
-    ProductBatch.countDocuments({ qtyOnHand: { $gt: 0, $lte: LOW_STOCK_THRESHOLD } }),
-    ProductBatch.countDocuments({ expiryDate: { $lt: now }, qtyOnHand: { $gt: 0 } }),
-    ProductBatch.countDocuments({ createdAt: { $lt: age }, qtyOnHand: { $gt: 50 } }),
+  const [totalItems, expiredBatches, expiringBatches, lowStockBatches, deadStockBatches, expiredValue] = await Promise.all([
+    ProductBatch.countDocuments({ qtyOnHand: { $gt: 0 } }),
+    ProductBatch.countDocuments({ qtyOnHand: { $gt: 0 }, expiryDate: { $lt: now } }),
+    ProductBatch.countDocuments({ qtyOnHand: { $gt: 0 }, expiryDate: { $gte: now, $lte: soon } }),
+    ProductBatch.countDocuments({ 
+      qtyOnHand: { $gt: 0 }, 
+      expiryDate: { $gt: soon }, // priority: if <= soon, it's expiring/expired, not low stock
+      productId: { $in: lowStockProductIds }
+    }),
+    ProductBatch.countDocuments({ qtyOnHand: { $gt: 50 }, createdAt: { $lt: age } }),
     ProductBatch.aggregate([
       { $match: { expiryDate: { $lt: now }, qtyOnHand: { $gt: 0 } } },
       { $group: { _id: null, value: { $sum: { $multiply: ["$qtyOnHand", "$mrp"] } } } },
@@ -181,11 +222,11 @@ export async function summarizeInventory() {
   ]);
 
   return {
-    totalSkus,
-    expiringSoon,
-    lowStock,
-    expired,
-    deadStock,
+    totalSkus: totalItems,
+    expiringSoon: expiringBatches,
+    lowStock: lowStockBatches,
+    expired: expiredBatches,
+    deadStock: deadStockBatches,
     potentialLoss: expiredValue[0]?.value || 0,
   };
 }

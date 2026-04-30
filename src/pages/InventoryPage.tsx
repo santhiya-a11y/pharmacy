@@ -14,6 +14,13 @@ import { useInventoryStock, useInventorySummary } from "@/hooks/api/useApi";
 import { inventoryApi } from "@/lib/api/endpoints";
 import { parseApiError } from "@/lib/api/errors";
 import { normalizeExpiryDisplay } from "@/lib/expiry";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function mapRow(r: Record<string, unknown>): InventoryItem {
   return {
@@ -47,6 +54,7 @@ const InventoryPage = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "expiring" | "low_stock" | "expired">("all");
   const debouncedQ = useDebouncedValue(search, 300);
 
   const { data: stockData, isLoading, isFetching } = useInventoryStock({
@@ -54,6 +62,7 @@ const InventoryPage = () => {
     page: 1,
     pageSize: 100,
     sort: "createdAt:desc",
+    type: filterType === "all" ? undefined : filterType,
   });
   const { data: summary } = useInventorySummary();
 
@@ -158,12 +167,23 @@ const InventoryPage = () => {
           />
         </div>
         <DateRangeFilter />
-        <button
-          type="button"
-          className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm hover:bg-secondary transition-colors"
+        <Select
+          value={filterType}
+          onValueChange={(val: any) => setFilterType(val)}
         >
-          <Filter className="h-4 w-4" /> Filter
-        </button>
+          <SelectTrigger className="w-[180px] bg-card border-border">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4" />
+              <SelectValue placeholder="Filter by status" />
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Items</SelectItem>
+            <SelectItem value="expiring">Expiring Soon</SelectItem>
+            <SelectItem value="low_stock">Low Stock</SelectItem>
+            <SelectItem value="expired">Expired</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="rounded-xl border border-border bg-card overflow-hidden">

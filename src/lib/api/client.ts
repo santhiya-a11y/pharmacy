@@ -6,6 +6,10 @@ import type { ApiEnvelope } from "./types";
  * Override with VITE_API_URL in `.env` (e.g. production URL).
  */
 const getBaseUrl = () => {
+  if (typeof window !== "undefined") {
+    const exposed = (window as Window & { PILL_SMART_API_URL?: string }).PILL_SMART_API_URL;
+    if (exposed) return exposed;
+  }
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   if (typeof window !== "undefined") {
     const { hostname, protocol } = window.location;

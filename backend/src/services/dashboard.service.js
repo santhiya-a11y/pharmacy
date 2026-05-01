@@ -1,7 +1,13 @@
+import { env } from "../config/env.js";
 import { Sale } from "../models/Sale.js";
 import { Expense } from "../models/Expense.js";
 import { ProductBatch } from "../models/ProductBatch.js";
 import * as reportService from "./report.service.js";
+import {
+  salesChartSeriesOffline,
+  getDashboardSummaryOffline,
+  salesSummaryOffline,
+} from "./offline/analyticsOffline.js";
 
 function dayBounds(d = new Date()) {
   const start = new Date(d);
@@ -19,6 +25,7 @@ function addDays(d, n) {
 
 /** Daily sales series for last `days` days (inclusive of today). */
 export async function salesChartSeries({ days = 7 } = {}) {
+  if (env.dbMode === "offline") return salesChartSeriesOffline({ days });
   const end = new Date();
   end.setHours(23, 59, 59, 999);
   const start = addDays(end, -(days - 1));
@@ -61,6 +68,13 @@ export async function salesChartSeries({ days = 7 } = {}) {
 }
 
 export async function getDashboardSummary({ from, to } = {}) {
+  if (env.dbMode === "offline") {
+    const summary = await getDashboardSummaryOffline();
+    if (from && to) {
+      summary.period = await salesSummaryOffline({ from, to });
+    }
+    return summary;
+  }
   const { start: t0, end: t1 } = dayBounds();
   const y0 = addDays(t0, -1);
   const y1 = addDays(t1, -1);

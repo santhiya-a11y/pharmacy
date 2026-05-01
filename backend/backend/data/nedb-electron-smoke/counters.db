@@ -1,0 +1,2 @@
+{"name":"Counter 1","location":"Ground Floor — Billing","status":"closed","todaySales":0,"todayTransactions":0,"_id":"69f33fbd8f881fdea2265292","createdAt":{"$$date":1777549245872},"updatedAt":{"$$date":1777549245872}}
+{"name":"Counter 2","location":"Ground Floor — Express","status":"closed","todaySales":0,"todayTransactions":0,"_id":"69f33fbd8f881fdea2265293","createdAt":{"$$date":1777549245874},"updatedAt":{"$$date":1777549245874}}

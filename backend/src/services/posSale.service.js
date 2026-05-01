@@ -1,4 +1,7 @@
 import mongoose from "mongoose";
+import { env } from "../config/env.js";
+import { withWriteLock } from "../db/nedb/writeMutex.js";
+import { createPosSaleOffline } from "./posSaleOffline.js";
 import { Sale } from "../models/Sale.js";
 import { Product } from "../models/Product.js";
 import { ProductBatch } from "../models/ProductBatch.js";
@@ -80,6 +83,10 @@ function gstRatesFromBatchAndProduct(batch, product) {
 }
 
 export async function createPosSale(input) {
+  if (env.dbMode === "offline") {
+    return withWriteLock("pos-sale", () => createPosSaleOffline(input));
+  }
+
   const idemKey = input.idempotencyKey?.trim();
   if (idemKey) {
     const existing = await Sale.findOne({ idempotencyKey: idemKey }).lean();

@@ -1,3 +1,5 @@
+import { env } from "../config/env.js";
+import { getWrapped } from "../db/nedb/initStores.js";
 import { Sale } from "../models/Sale.js";
 import { success, fail } from "../utils/apiResponse.js";
 
@@ -26,14 +28,23 @@ export async function listInvoices(req, res, next) {
       }
     }
 
-    const [rows, total] = await Promise.all([
-      Sale.find(filter)
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * pageSize)
-        .limit(pageSize)
-        .lean(),
-      Sale.countDocuments(filter),
-    ]);
+    let rows;
+    let total;
+    if (env.dbMode === "offline") {
+      const sales = getWrapped("sales");
+      let all = await sales.find(filter, { sort: { createdAt: -1 } });
+      total = all.length;
+      rows = all.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
+    } else {
+      [rows, total] = await Promise.all([
+        Sale.find(filter)
+          .sort({ createdAt: -1 })
+          .skip((page - 1) * pageSize)
+          .limit(pageSize)
+          .lean(),
+        Sale.countDocuments(filter),
+      ]);
+    }
     return res.json(success(rows, { page, pageSize, total }));
   } catch (e) {
     next(e);
@@ -42,8 +53,15 @@ export async function listInvoices(req, res, next) {
 
 export async function getInvoice(req, res, next) {
   try {
-    let inv = await Sale.findOne({ invoiceNo: req.params.id }).lean();
-    if (!inv) inv = await Sale.findById(req.params.id).lean();
+    let inv;
+    if (env.dbMode === "offline") {
+      const sales = getWrapped("sales");
+      inv = await sales.findOne({ invoiceNo: req.params.id });
+      if (!inv) inv = await sales.findOne({ _id: req.params.id });
+    } else {
+      inv = await Sale.findOne({ invoiceNo: req.params.id }).lean();
+      if (!inv) inv = await Sale.findById(req.params.id).lean();
+    }
     if (!inv) return res.status(404).json(fail("NOT_FOUND", "Invoice not found"));
     return res.json(success(inv));
   } catch (e) {

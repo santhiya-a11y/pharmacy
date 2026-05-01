@@ -1,5 +1,7 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "virexa-pharmacy",
+  "productName": "Virexa Pharmacy",
+  "main": "electron/main.cjs",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -7,9 +9,12 @@
     "dev": "vite",
     "dev:api": "npm --prefix backend run dev",
     "dev:all": "concurrently -n web,api -c cyan,magenta \"npm run dev\" \"npm run dev:api\"",
+    "electron:dev": "concurrently -n web,desktop -c cyan,magenta \"vite\" \"cross-env ELECTRON_DEV=1 electron .\"",
+    "electron:start": "cross-env DB_MODE=offline ELECTRON_DEV=0 electron .",
     "seed": "npm --prefix backend run seed",
     "build": "vite build",
     "build:dev": "vite build --mode development",
+    "electron:build": "npm run build && electron-builder",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
@@ -89,6 +94,24 @@
     "typescript-eslint": "^8.38.0",
     "vite": "^5.4.19",
     "vitest": "^3.2.4",
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.virexapharmacy.desktop",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "backend/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "electron/main.cjs"
+    },
+    "directories": {
+      "buildResources": "public"
+    }
   }
 }

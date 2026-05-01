@@ -1,3 +1,7 @@
+import { env } from "../config/env.js";
+import { deleteById, findById, insertWithTimestamps } from "../db/nedb/documentHelpers.js";
+import { getWrapped } from "../db/nedb/initStores.js";
+import { toIdString } from "../db/types.js";
 import { Employee } from "../models/Employee.js";
 import { success } from "../utils/apiResponse.js";
 import { z } from "zod";
@@ -31,13 +35,39 @@ export async function listStaff(req, res, next) {
     const q = req.query.q?.trim();
     const filter = q
       ? {
-          $or: [
-            { name: new RegExp(q, "i") },
-            { employeeCode: new RegExp(q, "i") },
-            { role: new RegExp(q, "i") },
-          ],
+          $or: [{ name: new RegExp(q, "i") }, { employeeCode: new RegExp(q, "i") }, { role: new RegExp(q, "i") }],
         }
       : {};
+
+    if (env.dbMode === "offline") {
+      const store = getWrapped("employees");
+      let rows = await store.find(filter, { sort: { name: 1 } });
+      const total = rows.length;
+      rows = rows.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
+      const all = await store.find({});
+      let active = 0;
+      let inactive = 0;
+      const roles = new Set();
+      for (const e of all) {
+        if (e.status === "active") active += 1;
+        if (e.status === "inactive") inactive += 1;
+        if (e.role) roles.add(e.role);
+      }
+      const summary = { total: all.length, active, inactive, roles: [...roles] };
+      return res.json(
+        success(rows, {
+          page,
+          pageSize,
+          total,
+          stats: {
+            total: summary.total,
+            active: summary.active,
+            inactive: summary.inactive,
+            rolesCount: summary.roles.length,
+          },
+        })
+      );
+    }
 
     const [data, total, stats] = await Promise.all([
       Employee.find(filter)
@@ -61,17 +91,19 @@ export async function listStaff(req, res, next) {
 
     const summary = stats[0] || { total: 0, active: 0, inactive: 0, roles: [] };
 
-    return res.json(success(data, { 
-      page, 
-      pageSize, 
-      total, 
-      stats: {
-        total: summary.total,
-        active: summary.active,
-        inactive: summary.inactive,
-        rolesCount: summary.roles.length,
-      } 
-    }));
+    return res.json(
+      success(data, {
+        page,
+        pageSize,
+        total,
+        stats: {
+          total: summary.total,
+          active: summary.active,
+          inactive: summary.inactive,
+          rolesCount: summary.roles.length,
+        },
+      })
+    );
   } catch (e) {
     next(e);
   }
@@ -80,6 +112,17 @@ export async function listStaff(req, res, next) {
 export async function postStaff(req, res, next) {
   try {
     const body = createSchema.parse(req.body);
+    if (env.dbMode === "offline") {
+      const store = getWrapped("employees");
+      const count = await store.count({});
+      const emp = await insertWithTimestamps(store, {
+        ...body,
+        employeeCode: `EMP-${String(count + 1).padStart(4, "0")}`,
+        joinDate: new Date(),
+        documents: [],
+      });
+      return res.status(201).json(success(emp));
+    }
     const count = await Employee.countDocuments();
     const emp = await Employee.create({
       ...body,
@@ -96,6 +139,22 @@ export async function postStaffDocument(req, res, next) {
   try {
     const { id } = req.params;
     const { name, type, url, size } = req.body;
+    if (env.dbMode === "offline") {
+      const store = getWrapped("employees");
+      const emp = await findById(store, id);
+      if (!emp) return res.status(404).json({ success: false, error: { code: "NOT_FOUND", message: "No employee" } });
+      const documents = [...(emp.documents || [])];
+      documents.push({
+        name,
+        type,
+        url,
+        size: size || "1.0 MB",
+        uploadedAt: new Date(),
+      });
+      await store.update({ _id: emp._id }, { $set: { documents, updatedAt: new Date() } }, {});
+      const out = await findById(store, id);
+      return res.json(success(out));
+    }
     const emp = await Employee.findByIdAndUpdate(
       id,
       {
@@ -121,6 +180,12 @@ export async function postStaffDocument(req, res, next) {
 export async function deleteStaff(req, res, next) {
   try {
     const { id } = req.params;
+    if (env.dbMode === "offline") {
+      const cur = await findById(getWrapped("employees"), id);
+      if (!cur) return res.status(404).json({ success: false, error: { code: "NOT_FOUND", message: "No employee found" } });
+      await deleteById(getWrapped("employees"), id);
+      return res.json(success({ ok: true }));
+    }
     const emp = await Employee.findByIdAndDelete(id);
     if (!emp) return res.status(404).json({ success: false, error: { code: "NOT_FOUND", message: "No employee found" } });
     return res.json(success({ ok: true }));
@@ -133,6 +198,14 @@ export async function updateStaff(req, res, next) {
   try {
     const { id } = req.params;
     const body = req.body;
+    if (env.dbMode === "offline") {
+      const store = getWrapped("employees");
+      const cur = await findById(store, id);
+      if (!cur) return res.status(404).json({ success: false, error: { code: "NOT_FOUND", message: "No employee found" } });
+      await store.update({ _id: cur._id }, { $set: { ...body, updatedAt: new Date() } }, {});
+      const emp = await findById(store, id);
+      return res.json(success(emp));
+    }
     const emp = await Employee.findByIdAndUpdate(id, { $set: body }, { new: true });
     if (!emp) return res.status(404).json({ success: false, error: { code: "NOT_FOUND", message: "No employee found" } });
     return res.json(success(emp));
@@ -144,11 +217,16 @@ export async function updateStaff(req, res, next) {
 export async function deleteStaffDocument(req, res, next) {
   try {
     const { id, docId } = req.params;
-    const emp = await Employee.findByIdAndUpdate(
-      id,
-      { $pull: { documents: { _id: docId } } },
-      { new: true }
-    );
+    if (env.dbMode === "offline") {
+      const store = getWrapped("employees");
+      const emp = await findById(store, id);
+      if (!emp) return res.status(404).json({ success: false, error: { code: "NOT_FOUND", message: "No employee found" } });
+      const documents = (emp.documents || []).filter((d) => toIdString(d._id) !== toIdString(docId));
+      await store.update({ _id: emp._id }, { $set: { documents, updatedAt: new Date() } }, {});
+      const out = await findById(store, id);
+      return res.json(success(out));
+    }
+    const emp = await Employee.findByIdAndUpdate(id, { $pull: { documents: { _id: docId } } }, { new: true });
     if (!emp) return res.status(404).json({ success: false, error: { code: "NOT_FOUND", message: "No employee found" } });
     return res.json(success(emp));
   } catch (e) {

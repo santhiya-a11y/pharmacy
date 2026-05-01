@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
 import { User } from "../models/User.js";
+import { loadUserWithRoleLean } from "../db/offline/authSupport.js";
 import { AppError, ErrorCodes } from "../utils/errors.js";
 import { RolePermissions } from "./permissions.js";
 
@@ -12,7 +13,10 @@ export async function authMiddleware(req, res, next) {
     }
     const token = header.slice(7);
     const payload = jwt.verify(token, env.jwtAccessSecret);
-    const user = await User.findById(payload.sub).populate("roleId").lean();
+    const user =
+      env.dbMode === "offline"
+        ? await loadUserWithRoleLean(payload.sub)
+        : await User.findById(payload.sub).populate("roleId").lean();
     if (!user || !user.isActive) {
       throw new AppError(ErrorCodes.UNAUTHORIZED, "Invalid user", 401);
     }

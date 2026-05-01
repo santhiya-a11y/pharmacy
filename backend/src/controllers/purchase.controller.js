@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { env } from "../config/env.js";
+import { findById } from "../db/nedb/documentHelpers.js";
+import { getWrapped } from "../db/nedb/initStores.js";
 import {
   createPurchaseOrder,
   receivePurchaseStock,
@@ -72,15 +75,30 @@ export async function listPurchases(req, res, next) {
       }
     }
 
-    const [data, total] = await Promise.all([
-      PurchaseOrder.find(filter)
-        .populate("supplierId", "name")
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * pageSize)
-        .limit(pageSize)
-        .lean(),
-      PurchaseOrder.countDocuments(filter),
-    ]);
+    let data;
+    let total;
+    if (env.dbMode === "offline") {
+      const poStore = getWrapped("purchaseorders");
+      let rows = await poStore.find(filter, { sort: { createdAt: -1 } });
+      total = rows.length;
+      rows = rows.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
+      data = await Promise.all(
+        rows.map(async (po) => {
+          const sup = po.supplierId ? await findById(getWrapped("suppliers"), po.supplierId) : null;
+          return { ...po, supplierId: sup ? { _id: sup._id, name: sup.name } : po.supplierId };
+        })
+      );
+    } else {
+      [data, total] = await Promise.all([
+        PurchaseOrder.find(filter)
+          .populate("supplierId", "name")
+          .sort({ createdAt: -1 })
+          .skip((page - 1) * pageSize)
+          .limit(pageSize)
+          .lean(),
+        PurchaseOrder.countDocuments(filter),
+      ]);
+    }
     return res.json(success(data, { page, pageSize, total }));
   } catch (e) {
     next(e);

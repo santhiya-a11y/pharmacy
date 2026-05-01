@@ -1,5 +1,9 @@
 import bcrypt from "bcryptjs";
+import { env } from "../config/env.js";
 import { User } from "../models/User.js";
+import { loadUserWithRoleLean } from "../db/offline/authSupport.js";
+import { getWrapped } from "../db/nedb/initStores.js";
+import { toIdString } from "../db/types.js";
 import { success, fail } from "../utils/apiResponse.js";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../utils/jwt.js";
 import { AppError, ErrorCodes } from "../utils/errors.js";
@@ -18,7 +22,14 @@ export async function login(req, res, next) {
     }
     const body = parsed.data;
 
-    const user = await User.findOne({ email: body.email.toLowerCase() }).populate("roleId");
+    const user =
+      env.dbMode === "offline"
+        ? await (async () => {
+            const u = await getWrapped("users").findOne({ email: body.email.toLowerCase() });
+            if (!u) return null;
+            return loadUserWithRoleLean(u._id);
+          })()
+        : await User.findOne({ email: body.email.toLowerCase() }).populate("roleId");
     if (!user || !user.isActive) {
       throw new AppError(ErrorCodes.UNAUTHORIZED, "Invalid credentials", 401);
     }
@@ -82,7 +93,10 @@ export async function refresh(req, res, next) {
     }
     const body = parsed.data;
     const payload = verifyRefreshToken(body.refreshToken);
-    const user = await User.findById(payload.sub).populate("roleId");
+    const user =
+      env.dbMode === "offline"
+        ? await loadUserWithRoleLean(payload.sub)
+        : await User.findById(payload.sub).populate("roleId");
     const tokenVersion = payload.v != null ? Number(payload.v) : 0;
     const currentVersion = Number(user?.refreshTokenVersion ?? 0);
     if (!user || tokenVersion !== currentVersion) {
@@ -98,7 +112,10 @@ export async function refresh(req, res, next) {
 
 export async function me(req, res, next) {
   try {
-    const user = await User.findById(req.user.id).populate("roleId").populate("employeeId").lean();
+    const user =
+      env.dbMode === "offline"
+        ? await loadUserWithRoleLean(req.user.id)
+        : await User.findById(req.user.id).populate("roleId").populate("employeeId").lean();
     if (!user) throw new AppError(ErrorCodes.NOT_FOUND, "User not found", 404);
     return res.json(
       success({
@@ -118,7 +135,15 @@ export async function me(req, res, next) {
 export async function logout(req, res, next) {
   try {
     if (req.user?.id) {
-      await User.findByIdAndUpdate(req.user.id, { $inc: { refreshTokenVersion: 1 } });
+      if (env.dbMode === "offline") {
+        await getWrapped("users").update(
+          { _id: toIdString(req.user.id) },
+          { $inc: { refreshTokenVersion: 1 }, $set: { updatedAt: new Date() } },
+          {}
+        );
+      } else {
+        await User.findByIdAndUpdate(req.user.id, { $inc: { refreshTokenVersion: 1 } });
+      }
     }
     return res.json(success({ ok: true }));
   } catch (e) {

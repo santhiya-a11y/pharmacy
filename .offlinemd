@@ -1,0 +1,54 @@
+# Pill Smart desktop offline mode
+
+Electron desktop runtime with:
+- React UI
+- Embedded Express API
+- Embedded NeDB persisted to local files
+
+## Environment
+
+| Variable | Meaning |
+|----------|---------|
+| `DB_MODE=offline` | Use NeDB; skip `MONGODB_URI` (optional in dev when offline). |
+| `NEDB_DATA_DIR` | Directory for `.db` files (default: `./data/nedb` relative to process cwd). |
+| `ELECTRON_API_PORT` | Local Express port used by Electron (default `4000`). |
+
+See `backend/.env.example` and copy values into `backend/.env`.
+
+## First-time backend setup
+
+From `backend/`:
+
+```bash
+set DB_MODE=offline
+set SEED_DEFAULT_PASSWORD=your-password-at-least-8-chars
+npm run seed
+npm run dev
+```
+
+(PowerShell: `$env:DB_MODE='offline'` etc.)
+
+## Run desktop app
+
+From project root:
+
+```bash
+npm run electron:dev
+```
+
+This starts:
+- Vite dev server on `8080`
+- Electron shell
+- Embedded Express API (`DB_MODE=offline`) in Electron main process
+
+## Production desktop build
+
+```bash
+npm run electron:build
+```
+
+## Notes
+
+- HTTP routes and JSON shapes match **online** mode.
+- Full checklist: `backend/OFFLINE_PARITY_CHECKLIST.md`.
+- Back up `NEDB_DATA_DIR`; offline is single-machine / single-process.

@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import fs from "fs";
 import pathMod from "path";
+import url from "url";
 import routes from "./routes/index.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { requestLogger } from "./middleware/requestLogger.js";
@@ -36,9 +37,20 @@ export function createApp() {
   }
   app.use("/uploads", express.static(uploadRoot));
 
-  app.use((_req, res) => {
-    res.status(404).json({ success: false, error: { code: "NOT_FOUND", message: "Route not found" } });
-  });
+  // --- Serve React Frontend ---
+  const __dirname = pathMod.dirname(url.fileURLToPath(import.meta.url));
+  const frontendDist = pathMod.resolve(__dirname, "../../dist");
+  
+  if (fs.existsSync(frontendDist)) {
+    app.use(express.static(frontendDist));
+    app.get("*", (req, res) => {
+      res.sendFile(pathMod.join(frontendDist, "index.html"));
+    });
+  } else {
+    app.use((_req, res) => {
+      res.status(404).json({ success: false, error: { code: "NOT_FOUND", message: "Route not found or Frontend not built" } });
+    });
+  }
 
   app.use(errorHandler);
 

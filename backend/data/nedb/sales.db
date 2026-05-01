@@ -1,0 +1,5 @@
+{"$$indexCreated":{"fieldName":"invoiceNo","unique":true,"sparse":false}}
+{"$$indexCreated":{"fieldName":"date","unique":false,"sparse":false}}
+{"$$indexCreated":{"fieldName":"customerPhone","unique":false,"sparse":false}}
+{"$$indexCreated":{"fieldName":"idempotencyKey","unique":true,"sparse":true}}
+{"$$indexCreated":{"fieldName":"invoiceNo","unique":true}}

@@ -9,7 +9,12 @@
  */
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
+import { pathToFileURL } from "url";
 import { loadEnv, env } from "../config/env.js";
+import { connectDb, disconnectDb } from "../config/db.js";
+import { COLLECTION_KEYS, getWrapped } from "../db/nedb/initStores.js";
+import { insertWithTimestamps } from "../db/nedb/documentHelpers.js";
+import { toIdString } from "../db/types.js";
 import { Role } from "../models/Role.js";
 import { User } from "../models/User.js";
 import { Employee } from "../models/Employee.js";
@@ -101,6 +106,14 @@ const SUPPLIERS_DATA = [
   { code: "SUP-012", name: "Alkem Laboratories Dist.", person: "Divya Kulkarni", phone: "9820011012", email: "dist@alkem.in", gst: "27AABCA3344L3Z1", addr: "Mumbai, Maharashtra" },
 ];
 
+export async function clearOfflineCollections() {
+  console.log("Clearing NeDB collections (--clear)...");
+  for (const key of COLLECTION_KEYS) {
+    await getWrapped(key).remove({}, { multi: true });
+  }
+  console.log("NeDB clear done.");
+}
+
 async function clearCollections() {
   console.log("Clearing collections (--clear)...");
   await SaleHold.deleteMany({});
@@ -120,6 +133,14 @@ async function clearCollections() {
 
 async function seedRoles() {
   const roleDocs = {};
+  if (env.dbMode === "offline") {
+    const store = getWrapped("roles");
+    for (const name of ROLES) {
+      const r = await insertWithTimestamps(store, { name, permissions: RolePermissions[name] || [] });
+      roleDocs[name] = r;
+    }
+    return roleDocs;
+  }
   for (const name of ROLES) {
     const r = await Role.create({ name, permissions: RolePermissions[name] || [] });
     roleDocs[name] = r;
@@ -136,6 +157,24 @@ async function seedEmployees() {
     { code: "EMP-005", name: "Vikram Patil", roleLabel: "Inventory Manager", phone: "9876543214", email: "vikram@pharmacare.in", shift: "Full Day" },
   ];
   const map = {};
+  if (env.dbMode === "offline") {
+    const store = getWrapped("employees");
+    for (const e of list) {
+      const doc = await insertWithTimestamps(store, {
+        employeeCode: e.code,
+        name: e.name,
+        role: e.roleLabel,
+        phone: e.phone,
+        email: e.email,
+        status: "active",
+        shift: e.shift,
+        joinDate: new Date("2023-04-01"),
+        documents: [],
+      });
+      map[e.code] = doc;
+    }
+    return map;
+  }
   for (const e of list) {
     const doc = await Employee.create({
       employeeCode: e.code,
@@ -160,9 +199,29 @@ async function seedUsers(roleDocs, employees, passwordHash) {
     { email: "pharmacist@pharmacare.in", role: "Pharmacist", emp: "EMP-004" },
     { email: "inventory@pharmacare.in", role: "Inventory Manager", emp: "EMP-005" },
   ];
+  if (env.dbMode === "offline") {
+    const usersStore = getWrapped("users");
+    const empStore = getWrapped("employees");
+    for (const u of rows) {
+      const user = await insertWithTimestamps(usersStore, {
+        email: u.email.toLowerCase(),
+        passwordHash,
+        roleId: toIdString(roleDocs[u.role]._id),
+        employeeId: toIdString(employees[u.emp]._id),
+        isActive: true,
+        refreshTokenVersion: 0,
+      });
+      await empStore.update(
+        { _id: employees[u.emp]._id },
+        { $set: { userId: user._id, updatedAt: new Date() } },
+        {}
+      );
+    }
+    return;
+  }
   for (const u of rows) {
     const user = await User.create({
-      email: u.email,
+      email: u.email.toLowerCase(),
       passwordHash,
       roleId: roleDocs[u.role]._id,
       employeeId: employees[u.emp]._id,
@@ -175,6 +234,29 @@ async function seedUsers(roleDocs, employees, passwordHash) {
 
 async function seedSuppliers() {
   const docs = [];
+  if (env.dbMode === "offline") {
+    const store = getWrapped("suppliers");
+    for (const s of SUPPLIERS_DATA) {
+      docs.push(
+        await insertWithTimestamps(store, {
+          supplierCode: s.code,
+          name: s.name,
+          contactPerson: s.person,
+          phone: s.phone,
+          email: s.email,
+          location: s.addr,
+          gst: s.gst,
+          rating: 4 + Math.random() * 0.9,
+          categories: ["Medicines", "Surgicals"],
+          totalOrders: 0,
+          totalValue: 0,
+          outstandingAmount: 0,
+          creditDays: 0,
+        })
+      );
+    }
+    return docs;
+  }
   for (const s of SUPPLIERS_DATA) {
     docs.push(
       await Supplier.create({
@@ -211,10 +293,12 @@ function addDays(d, days) {
 async function seedProductsAndBatches(suppliers) {
   const racks = ["A1", "A2", "B1", "B2", "C1", "D1", "Cold-1"];
   const now = new Date();
+  const productStore = env.dbMode === "offline" ? getWrapped("products") : null;
+  const batchStore = env.dbMode === "offline" ? getWrapped("productbatches") : null;
 
   for (let i = 0; i < MEDICINES.length; i++) {
     const m = MEDICINES[i];
-    const p = await Product.create({
+    const productPayload = {
       name: m.name,
       description: `${m.generic} — ${m.cat}`,
       genericName: m.generic,
@@ -223,7 +307,11 @@ async function seedProductsAndBatches(suppliers) {
       category: m.cat,
       requiresRx: m.rx,
       defaultGstPct: m.gst,
-    });
+    };
+    const p =
+      env.dbMode === "offline"
+        ? await insertWithTimestamps(productStore, productPayload)
+        : await Product.create(productPayload);
 
     const sup = suppliers[i % suppliers.length];
     const gst = splitGstPct(m.gst);
@@ -269,19 +357,25 @@ async function seedProductsAndBatches(suppliers) {
         return { expiryDate: exp, status: st };
       })();
 
-      await ProductBatch.create({
-        productId: p._id,
-        supplierId: sup._id,
+      const batchPayload = {
+        productId: env.dbMode === "offline" ? toIdString(p._id) : p._id,
+        supplierId: env.dbMode === "offline" ? toIdString(sup._id) : sup._id,
         batchNo: plan.batchNo,
         expiryDate,
         mrp: plan.mrp,
-        purchaseRate: Math.round(plan.mrp * (0.55 + (b * 0.03)) * 100) / 100,
+        purchaseRate: Math.round(plan.mrp * (0.55 + b * 0.03) * 100) / 100,
         sgstPct: gst.sgstPct,
         cgstPct: gst.cgstPct,
         rack: plan.rack,
         qtyOnHand: status === "expired" ? Math.min(plan.qty, 5) : plan.qty,
         status,
-      });
+      };
+
+      if (env.dbMode === "offline") {
+        await insertWithTimestamps(batchStore, batchPayload);
+      } else {
+        await ProductBatch.create(batchPayload);
+      }
     }
   }
 }
@@ -289,6 +383,28 @@ async function seedProductsAndBatches(suppliers) {
 async function seedCustomers() {
   const first = ["Rajesh", "Priya", "Amit", "Sneha", "Vikram", "Kavita", "Rahul", "Anita", "Suresh", "Meera"];
   const last = ["Kumar", "Sharma", "Patil", "Desai", "Iyer", "Nair", "Verma", "Joshi", "Menon", "Kulkarni"];
+
+  if (env.dbMode === "offline") {
+    const store = getWrapped("customers");
+    for (let i = 0; i < 24; i++) {
+      const phone = `98${String(76543200 + i).padStart(8, "0")}`;
+      const types = ["regular", "regular", "vip", "credit"];
+      const type = types[i % types.length];
+      await insertWithTimestamps(store, {
+        customerCode: `CUST-${String(i + 1).padStart(3, "0")}`,
+        name: `${first[i % first.length]} ${last[(i + 3) % last.length]}`,
+        phone,
+        email: i % 3 === 0 ? `cust${i + 1}@email.in` : undefined,
+        address: `${100 + i} MG Road, Mumbai`,
+        loyaltyPoints: (i * 17) % 850,
+        creditBalance: type === "credit" ? 200 + (i % 5) * 150 : 0,
+        totalPurchases: 5000 + i * 400,
+        type,
+        lastVisit: addDays(new Date(), -i),
+      });
+    }
+    return;
+  }
 
   for (let i = 0; i < 24; i++) {
     const phone = `98${String(76543200 + i).padStart(8, "0")}`;
@@ -310,6 +426,24 @@ async function seedCustomers() {
 }
 
 async function seedCounters() {
+  if (env.dbMode === "offline") {
+    const store = getWrapped("counters");
+    await insertWithTimestamps(store, {
+      name: "Counter 1",
+      location: "Ground Floor — Billing",
+      status: "closed",
+      todaySales: 0,
+      todayTransactions: 0,
+    });
+    await insertWithTimestamps(store, {
+      name: "Counter 2",
+      location: "Ground Floor — Express",
+      status: "closed",
+      todaySales: 0,
+      todayTransactions: 0,
+    });
+    return;
+  }
   await Counter.create({
     name: "Counter 1",
     location: "Ground Floor — Billing",
@@ -323,7 +457,7 @@ async function seedCounters() {
 }
 
 async function seedSettings() {
-  await StoreSettings.create({
+  const billing = {
     key: "billing",
     value: {
       invoicePrefix: "INV-",
@@ -331,8 +465,8 @@ async function seedSettings() {
       roundOff: true,
       footerNote: "Goods once sold will not be taken back. Subject to jurisdiction of Mumbai.",
     },
-  });
-  await StoreSettings.create({
+  };
+  const store = {
     key: "store",
     value: {
       storeName: "PharmaCare Medical & General Stores",
@@ -343,16 +477,16 @@ async function seedSettings() {
       gstin: "27AAAAA0000A1Z5",
       drugLicense: "MH-MUM-123456",
     },
-  });
-  await StoreSettings.create({
+  };
+  const gst = {
     key: "gst",
     value: {
       defaultIntraState: 12,
       slabs: [5, 12, 18],
       includeGstInMrp: true,
     },
-  });
-  await StoreSettings.create({
+  };
+  const invoice = {
     key: "invoice",
     value: {
       showHsn: true,
@@ -360,17 +494,77 @@ async function seedSettings() {
       showExpiry: true,
       duplicateCopy: true,
     },
-  });
+  };
+
+  if (env.dbMode === "offline") {
+    const st = getWrapped("storesettings");
+    await insertWithTimestamps(st, billing);
+    await insertWithTimestamps(st, store);
+    await insertWithTimestamps(st, gst);
+    await insertWithTimestamps(st, invoice);
+    return;
+  }
+
+  await StoreSettings.create(billing);
+  await StoreSettings.create(store);
+  await StoreSettings.create(gst);
+  await StoreSettings.create(invoice);
+}
+
+/** Full offline demo seed; NeDB must be initialized first. */
+export async function executeOfflineSeed(passwordPlain) {
+  const pwd = String(passwordPlain ?? "");
+  if (pwd.length < 8) {
+    throw new Error("Password must be at least 8 characters for seeding users");
+  }
+  const passwordHash = await bcrypt.hash(pwd, 10);
+  const roleDocs = await seedRoles();
+  const employees = await seedEmployees();
+  await seedUsers(roleDocs, employees, passwordHash);
+  const suppliers = await seedSuppliers();
+  await seedProductsAndBatches(suppliers);
+  await seedCustomers();
+  await seedCounters();
+  await seedSettings();
 }
 
 async function run() {
-  await mongoose.connect(env.mongoUri);
+  await connectDb();
+
+  if (env.dbMode === "offline") {
+    if (CLEAR_FLAG) {
+      await clearOfflineCollections();
+    } else if ((await getWrapped("roles").count({})) > 0) {
+      console.log("NeDB already contains seed data. To wipe and re-seed, run: npm run seed -- --clear");
+      await disconnectDb();
+      process.exit(0);
+    }
+
+    const defaultPassword = process.env.SEED_DEFAULT_PASSWORD;
+    if (!defaultPassword || defaultPassword.length < 8) {
+      throw new Error("SEED_DEFAULT_PASSWORD (min 8 chars) is required for seeding users");
+    }
+    await executeOfflineSeed(defaultPassword);
+
+    console.log("");
+    console.log("NeDB seed complete.");
+    console.log("  Users (password from SEED_DEFAULT_PASSWORD):");
+    console.log("    admin@pharmacare.in (Admin)");
+    console.log("    cashier1@pharmacare.in, cashier2@pharmacare.in (Cashier)");
+    console.log("    pharmacist@pharmacare.in (Pharmacist)");
+    console.log("    inventory@pharmacare.in (Inventory Manager)");
+    console.log(`  Products: ${MEDICINES.length} | Batches: ~2–3 each | Customers: 24 | Suppliers: ${SUPPLIERS_DATA.length}`);
+    console.log("");
+
+    await disconnectDb();
+    process.exit(0);
+  }
 
   if (CLEAR_FLAG) {
     await clearCollections();
   } else if ((await Role.countDocuments()) > 0) {
     console.log("Database already contains seed data. To wipe and re-seed, run: npm run seed -- --clear");
-    await mongoose.disconnect();
+    await disconnectDb();
     process.exit(0);
   }
 
@@ -399,10 +593,12 @@ async function run() {
   console.log(`  Products: ${MEDICINES.length} | Batches: ~2–3 each | Customers: 24 | Suppliers: ${SUPPLIERS_DATA.length}`);
   console.log("");
 
-  await mongoose.disconnect();
+  await disconnectDb();
 }
 
-run().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  run().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}

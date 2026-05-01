@@ -1,9 +1,16 @@
+import { env } from "../config/env.js";
 import { Sale } from "../models/Sale.js";
 import { ProductBatch } from "../models/ProductBatch.js";
 import { Product } from "../models/Product.js";
 import { ReturnDoc } from "../models/ReturnDoc.js";
 import { InventoryLog } from "../models/InventoryLog.js";
 import { subDays, startOfDay, endOfDay, format } from "date-fns";
+import {
+  salesSummaryOffline,
+  detailedSalesReportOffline,
+  gstReportOffline,
+  inventoryIntelligenceOffline,
+} from "./offline/analyticsOffline.js";
 
 function pctChange(current, previous) {
   if (!previous) return current > 0 ? 100 : 0;
@@ -11,6 +18,7 @@ function pctChange(current, previous) {
 }
 
 export async function salesSummary({ from, to }) {
+  if (env.dbMode === "offline") return salesSummaryOffline({ from, to });
   const start = from ? startOfDay(new Date(from)) : subDays(new Date(), 30);
   const end = to ? endOfDay(new Date(to)) : new Date();
   const periodMs = end.getTime() - start.getTime();
@@ -155,6 +163,7 @@ export async function salesSummary({ from, to }) {
 }
 
 export async function detailedSalesReport({ from, to }) {
+  if (env.dbMode === "offline") return detailedSalesReportOffline({ from, to });
   const start = from ? startOfDay(new Date(from)) : subDays(new Date(), 30);
   const end = to ? endOfDay(new Date(to)) : new Date();
 
@@ -235,6 +244,7 @@ export async function detailedSalesReport({ from, to }) {
 }
 
 export async function gstReport({ from, to }) {
+  if (env.dbMode === "offline") return gstReportOffline({ from, to });
   const start = from ? startOfDay(new Date(from)) : subDays(new Date(), 30);
   const end = to ? endOfDay(new Date(to)) : new Date();
 
@@ -294,6 +304,7 @@ export async function gstReport({ from, to }) {
 }
 
 export async function inventoryIntelligence() {
+  if (env.dbMode === "offline") return inventoryIntelligenceOffline();
   const now = new Date();
   const soon = new Date();
   soon.setDate(soon.getDate() + 30);

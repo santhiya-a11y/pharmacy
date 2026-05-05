@@ -8,13 +8,13 @@ import type { ApiEnvelope } from "./types";
 const getBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
   if (typeof window !== "undefined") {
-    const { hostname, protocol } = window.location;
-    // If we're on a private IP or domain, the backend is likely on same host, port 4000
-    if (hostname !== "localhost" && hostname !== "127.0.0.1") {
-      return `${protocol}//${hostname}:4000/api/v1`;
-    }
+    const { hostname, protocol, port } = window.location;
+    // For local dev where Vite is running without proxying, we could fallback to 4000
+    // But Vite is configured to proxy /api to 4000 anyway.
+    // By using a relative path, it perfectly handles the offline production app (running on 8080)
+    // as well as any network IP access.
   }
-  return "http://localhost:4000/api/v1";
+  return "/api/v1";
 };
 
 export const API_BASE_URL = getBaseUrl();

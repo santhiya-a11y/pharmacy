@@ -269,6 +269,11 @@ const POSBilling = () => {
     setCart(prev => prev.map(c => c.id === id ? { ...c, qty: Math.max(1, c.qty + delta) } : c));
   };
 
+  const setQty = (id: string, nextQty: number) => {
+    const safeQty = Number.isFinite(nextQty) ? Math.max(1, Math.floor(nextQty)) : 1;
+    setCart(prev => prev.map(c => c.id === id ? { ...c, qty: safeQty } : c));
+  };
+
   const updateDiscount = (id: string, disc: number) => {
     setCart(prev => prev.map(c => c.id === id ? { ...c, discPct: Math.min(100, Math.max(0, disc)) } : c));
   };
@@ -748,7 +753,15 @@ const POSBilling = () => {
                           <button onClick={() => updateQty(item.id, -1)} className="rounded p-0.5 hover:bg-secondary transition-colors active:scale-95">
                             <Minus className="h-3 w-3" />
                           </button>
-                          <span className="w-6 text-center text-xs font-bold tabular-nums">{item.qty}</span>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={1}
+                            value={item.qty}
+                            onChange={(e) => setQty(item.id, Number.parseInt(e.target.value, 10) || 1)}
+                            onBlur={(e) => setQty(item.id, Number.parseInt(e.target.value, 10) || 1)}
+                            className="h-6 w-14 rounded border border-border bg-background px-1 text-center text-xs font-bold tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
+                          />
                           <button onClick={() => updateQty(item.id, 1)} className="rounded p-0.5 hover:bg-secondary transition-colors active:scale-95">
                             <Plus className="h-3 w-3" />
                           </button>
@@ -760,7 +773,7 @@ const POSBilling = () => {
                         <input
                           type="number" min={0} max={100} value={item.discPct}
                           onChange={e => updateDiscount(item.id, parseFloat(e.target.value) || 0)}
-                          className="w-full rounded border border-border bg-background px-1 py-0.5 text-[10px] text-right tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
+                          className="h-7 w-full min-w-12 rounded border border-border bg-background px-1.5 py-0.5 text-[11px] text-right text-foreground tabular-nums focus:outline-none focus:ring-1 focus:ring-ring"
                         />
                       </td>
                       <td className="px-2 py-2 text-right font-bold tabular-nums text-card-foreground">₹{getItemAmount(item).toFixed(2)}</td>

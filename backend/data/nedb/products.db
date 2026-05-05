@@ -1,1 +1,2 @@
 {"$$indexCreated":{"fieldName":"name","unique":false,"sparse":false}}
+{"name":"Dolo","manufacturer":"wrsgdb","category":"surgical","defaultGstPct":12,"_id":"69f98eba4d3ffc12c6d92743","createdAt":{"$$date":1777962682720},"updatedAt":{"$$date":1777962682720}}
